@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>පොදු සේවය - බටගම සභාව | Roster Pro (Firebase Live Edition)</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gemunu+Libre:wght@600;700;800&family=Noto+Sans+Sinhala:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK (Compat mode - 100% static hosting / Vercel compatible) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --border-color: #cbd5e1;
+      --border-dark: #334155;
+
+      /* CHARM (චාම්) PASTEL ELEGANT PALETTE */
+      /* W1: Warm Honey Amber */
+      --gold-header: #fde047;
+      --gold-sub: #fef08a;
+      --gold-col-time: #fef9c3;
+      --gold-border: #ca8a04;
+
+      /* W2: Fresh Soft Mint Green */
+      --green-header: #86efac;
+      --green-sub: #bbf7d0;
+      --green-col-time: #dcfce7;
+      --green-border: #16a34a;
+
+      /* W3: Soft Warm Sunset Peach */
+      --coral-header: #fdba74;
+      --coral-sub: #fed7aa;
+      --coral-col-time: #ffedd5;
+      --coral-border: #ea580c;
+
+      /* W4: Soft Royal Lavender */
+      --violet-header: #c4b5fd;
+      --violet-sub: #ddd6fe;
+      --violet-col-time: #ede9fe;
+      --violet-border: #7c3aed;
+
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans Sinhala', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.45;
+      padding-bottom: 70px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Elegant Minimalist Top Navigation */
+    .app-topbar {
+      background: #ffffff;
+      color: #0f172a;
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      background: #0f172a;
+      color: #ffffff;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-title {
+      font-family: 'Gemunu Libre', 'Noto Sans Sinhala', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+    }
+
+    /* Live Firebase Pill */
+    .fb-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      cursor: pointer;
+      user-select: none;
+    }
+    .fb-pill.live {
+      color: #166534;
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .fb-pill.connecting {
+      color: #854d0e;
+      background: #fefce8;
+      border-color: #fde047;
+    }
+    .fb-pill.offline {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+
+    .topbar-btns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Clean Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      user-select: none;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid #0f172a;
+    }
+    .btn-primary:hover {
+      background: #1e293b;
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .btn-summary {
+      background: #0284c7;
+      color: #ffffff;
+      border: 1px solid #0284c7;
+    }
+    .btn-summary:hover {
+      background: #0369a1;
+    }
+
+    /* Main Container */
+    .main-wrap {
+      max-width: 980px;
+      margin: 16px auto;
+      padding: 0 16px;
+    }
+
+    /* Charm Title Section */
+    .title-banner-charm {
+      background: #ffffff;
+      border: 1.5px solid #000000;
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      text-align: center;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .main-heading-charm {
+      font-family: 'Gemunu Libre', 'Noto Sans Sinhala', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: #000000;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .meta-charm {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #334155;
+      flex-wrap: wrap;
+    }
+
+    .pill-charm-gold {
+      background: #fef08a;
+      color: #000000;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: 700;
+      border: 1px solid #ca8a04;
+    }
+
+    .pill-charm-slate {
+      background: #f1f5f9;
+      color: #334155;
+      padding: 2px 10px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+    }
+
+    /* Month Selector & Search Controls */
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .month-segmented {
+      display: inline-flex;
+      background: #f1f5f9;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .segment-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 14px;
+      border-radius: 4px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .segment-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      font-weight: 700;
+    }
+
+    .search-box-charm {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      width: 220px;
+    }
+
+    .search-box-charm input {
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 0.85rem;
+      font-family: inherit;
+      width: 100%;
+      color: #0f172a;
+    }
+
+    /* Cards Grid */
+    .roster-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Day Card */
+    .day-card {
+      background: #ffffff;
+      border-radius: var(--radius);
+      border: 1.5px solid #000000;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      transition: box-shadow 0.15s ease;
+    }
+
+    .day-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    /* THEME 1: GOLD AMBER */
+    .day-card.theme-gold .card-header-bar {
+      background-color: var(--gold-header);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-gold .sub-header-bar {
+      background-color: var(--gold-sub);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-gold .roster-table td:first-child {
+      background-color: var(--gold-col-time);
+    }
+    .day-card.theme-gold tbody tr:hover {
+      background-color: #fefce8;
+    }
+
+    /* THEME 2: MINT GREEN */
+    .day-card.theme-green .card-header-bar {
+      background-color: var(--green-header);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-green .sub-header-bar {
+      background-color: var(--green-sub);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-green .roster-table td:first-child {
+      background-color: var(--green-col-time);
+    }
+    .day-card.theme-green tbody tr:hover {
+      background-color: #f0fdf4;
+    }
+
+    /* THEME 3: SUNSET PEACH */
+    .day-card.theme-coral .card-header-bar {
+      background-color: var(--coral-header);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-coral .sub-header-bar {
+      background-color: var(--coral-sub);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-coral .roster-table td:first-child {
+      background-color: var(--coral-col-time);
+    }
+    .day-card.theme-coral tbody tr:hover {
+      background-color: #fff7ed;
+    }
+
+    /* THEME 4: ROYAL LAVENDER */
+    .day-card.theme-violet .card-header-bar {
+      background-color: var(--violet-header);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-violet .sub-header-bar {
+      background-color: var(--violet-sub);
+      border-bottom: 1.5px solid #000000;
+    }
+    .day-card.theme-violet .roster-table td:first-child {
+      background-color: var(--violet-col-time);
+    }
+    .day-card.theme-violet tbody tr:hover {
+      background-color: #faf5ff;
+    }
+
+    /* Card Top Header */
+    .card-header-bar {
+      padding: 7px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #000000;
+    }
+
+    .date-heading-text {
+      font-family: 'Gemunu Libre', 'Noto Sans Sinhala', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #000000;
+      outline: none;
+      border-radius: 4px;
+      padding: 2px 4px;
+      cursor: text;
+    }
+    .date-heading-text:focus {
+      background: #ffffff;
+      outline: 2px solid #0f172a;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .loc-text {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #000000;
+      outline: none;
+      cursor: text;
+    }
+    .loc-text:focus {
+      background: #ffffff;
+      outline: 2px solid #0f172a;
+    }
+
+    .theme-select-quick {
+      background: #ffffff;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      padding: 1px 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .btn-card-del {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .btn-card-del:hover {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    /* Table Grid */
+    .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+    }
+
+    .roster-table thead th {
+      color: #000000;
+      font-weight: 700;
+      font-size: 0.92rem;
+      padding: 6px 8px;
+      border-right: 1px solid #000000;
+    }
+    .roster-table thead th:last-child {
+      border-right: none;
+    }
+
+    .col-time { width: 23%; }
+    .col-p { width: 24%; }
+    .col-act { width: 4%; }
+
+    .roster-table tbody tr {
+      border-bottom: 1px solid #000000;
+      transition: background 0.1s;
+    }
+    .roster-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .roster-table td {
+      padding: 6px 8px;
+      border-right: 1px solid #000000;
+      vertical-align: middle;
+      font-size: 0.96rem;
+    }
+    .roster-table td:last-child {
+      border-right: none;
+    }
+
+    .time-text {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #000000;
+      outline: none;
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .time-text:focus {
+      background: #ffffff;
+      outline: 2px solid #0f172a;
+    }
+
+    /* Participant Cell & Live Status Styling */
+    .participant-cell-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-height: 48px;
+      justify-content: center;
+    }
+
+    .name-editable {
+      display: inline-block;
+      width: 95%;
+      min-height: 20px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 700;
+      color: #000000;
+      outline: none;
+      cursor: text;
+      transition: all 0.12s ease;
+      word-break: break-word;
+    }
+    .name-editable:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+    .name-editable:focus {
+      background: #ffffff;
+      outline: 2px solid #0f172a;
+    }
+    .name-editable.empty {
+      color: #94a3b8;
+      font-style: italic;
+      font-size: 0.85rem;
+    }
+
+    /* Live Meta Badges Row (Status + WhatsApp Phone) */
+    .live-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s ease;
+    }
+    .status-badge:hover {
+      transform: scale(1.05);
+    }
+
+    .status-confirmed {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+    .status-swapped {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #7dd3fc;
+    }
+    .status-declined {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde047;
+    }
+
+    .phone-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .phone-badge:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .phone-badge.wa-link {
+      color: #059669;
+    }
+    .phone-badge.add-phone {
+      color: #64748b;
+      border-style: dashed;
+    }
+
+    .btn-row-del {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 1px 4px;
+      line-height: 1;
+    }
+    .btn-row-del:hover {
+      color: #dc2626;
+    }
+
+    /* Card Bottom Quick Bar */
+    .card-footer-quickbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 3px 10px;
+      background: #fafafa;
+      border-top: 1px solid #000000;
+    }
+
+    .btn-quick-add {
+      background: transparent;
+      border: 1px dashed #94a3b8;
+      color: #475569;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-quick-add:hover {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    /* WHQ Badge */
+    .whq-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+    }
+
+    /* Footer */
+    .doc-footer {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1.5px solid #000000;
+      text-align: center;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #000000;
+    }
+
+    /* General Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 460px;
+      border: 1.5px solid #000000;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+    .modal-top {
+      background: #0f172a;
+      color: white;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-top h3 { font-size: 1rem; font-weight: 700; }
+    .modal-close { background: transparent; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    .field-group label { font-size: 0.82rem; font-weight: 600; color: #0f172a; }
+    .field-input {
+      padding: 7px 10px;
+      border-radius: 5px;
+      border: 1px solid #000000;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .modal-actions {
+      padding: 10px 16px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    /* SUMMARY MODAL (Wider) */
+    .modal-card-wide {
+      max-width: 760px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-body-scroll {
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Summary Stats Grid */
+    .summary-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .stat-box {
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+      border: 1.5px solid transparent;
+    }
+    .stat-box .count {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .stat-box .label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .stat-confirmed { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .stat-swapped { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+    .stat-declined { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+    .stat-pending { background: #fef3c7; color: #92400e; border-color: #fde047; }
+    .stat-total { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+
+    /* Summary Groups Lists */
+    .summary-group-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .summary-group-title {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .summary-group-list {
+      padding: 8px 14px;
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: #ffffff;
+      font-size: 0.86rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .summary-group-list li {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed #f1f5f9;
+      padding-bottom: 3px;
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0f172a;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.2s ease;
+      z-index: 2000;
+    }
+    .toast-box.show { transform: translateY(0); opacity: 1; }
+
+    /* PRINT STYLES */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 6mm 8mm 6mm 8mm;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        color: #000000 !important;
+        font-size: 10pt;
+      }
+
+      .app-topbar,
+      .controls-row,
+      .card-footer-quickbar,
+      .col-act,
+      .td-action,
+      .theme-select-quick,
+      .btn-card-del,
+      .btn-row-del,
+      .phone-badge.add-phone,
+      .modal-overlay,
+      .toast-box,
+      .no-print {
+        display: none !important;
+      }
+
+      .main-wrap {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .title-banner-charm {
+        border: 1.5px solid #000000 !important;
+        padding: 8px 12px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .main-heading-charm {
+        font-size: 1.4rem !important;
+        color: #000000 !important;
+      }
+
+      .roster-grid {
+        gap: 8px !important;
+      }
+
+      .day-card {
+        border: 1.5px solid #000000 !important;
+        margin-bottom: 8px !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .card-header-bar {
+        padding: 5px 8px !important;
+        border-bottom: 1.5px solid #000000 !important;
+      }
+
+      .sub-header-bar {
+        border-bottom: 1.5px solid #000000 !important;
+      }
+
+      .roster-table thead th {
+        border-right: 1px solid #000000 !important;
+        padding: 4px 6px !important;
+      }
+
+      .roster-table td {
+        padding: 4px 6px !important;
+        border-right: 1px solid #000000 !important;
+        font-size: 9.5pt !important;
+      }
+
+      .roster-table tbody tr {
+        border-bottom: 1px solid #000000 !important;
+      }
+
+      .day-card.theme-gold .card-header-bar { background-color: #fde047 !important; }
+      .day-card.theme-gold .sub-header-bar { background-color: #fef08a !important; }
+      .day-card.theme-gold .roster-table td:first-child { background-color: #fef9c3 !important; }
+
+      .day-card.theme-green .card-header-bar { background-color: #86efac !important; }
+      .day-card.theme-green .sub-header-bar { background-color: #bbf7d0 !important; }
+      .day-card.theme-green .roster-table td:first-child { background-color: #dcfce7 !important; }
+
+      .day-card.theme-coral .card-header-bar { background-color: #fdba74 !important; }
+      .day-card.theme-coral .sub-header-bar { background-color: #fed7aa !important; }
+      .day-card.theme-coral .roster-table td:first-child { background-color: #ffedd5 !important; }
+
+      .day-card.theme-violet .card-header-bar { background-color: #c4b5fd !important; }
+      .day-card.theme-violet .sub-header-bar { background-color: #ddd6fe !important; }
+      .day-card.theme-violet .roster-table td:first-child { background-color: #ede9fe !important; }
+
+      .name-editable {
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+
+      .status-badge {
+        border: 1px solid #000000 !important;
+        padding: 0 4px !important;
+      }
+
+      .doc-footer {
+        margin-top: 10px !important;
+        padding-top: 6px !important;
+        border-top: 1.5px solid #000000 !important;
+        font-size: 0.82rem !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="app-topbar">
+    <div class="brand-wrap">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">
+          <span>පොදු සේවය</span>
+          <span class="brand-badge">බටගම සභාව</span>
+        </div>
+      </div>
+      <!-- Live Firebase Status Indicator -->
+      <span id="firebaseStatusPill" class="fb-pill connecting" onclick="checkFirebaseConnection()" title="Firestore Connection Status">
+        <span style="font-size:0.6rem;">●</span> <span id="firebaseStatusText">Connecting...</span>
+      </span>
+    </div>
+    
+    <div class="topbar-btns">
+      <!-- Full Summary Modal Trigger -->
+      <button class="btn btn-summary" onclick="openSummaryModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+        සාරාංශය (Summary)
+      </button>
+
+      <button class="btn btn-secondary" onclick="openAddDayModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        නව දිනයක් (Add Day)
+      </button>
+
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        PDF සුරකින්න (Print)
+      </button>
+
+      <button class="btn btn-secondary" onclick="exportToExcel()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+        Excel (.xls)
+      </button>
+
+      <button class="btn btn-secondary" onclick="resetActiveMonthData()" title="නැවත මුල් දත්ත වලට හරවන්න">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+        මුල් තත්වයට
+      </button>
+    </div>
+  </header>
+
+  <main class="main-wrap">
+    <!-- Charm Title Section -->
+    <section class="title-banner-charm">
+      <h1 class="main-heading-charm">පොදු සේවය - බටගම සභාව</h1>
+      <div class="meta-charm">
+        <span class="pill-charm-gold" id="heroMonthLabel">2026 සැප්තැම්බර් මාසික කාලසටහන</span>
+        <span class="pill-charm-slate" id="heroLocationLabel">📍 ස්ථානය : නමස්කාර මධ්‍යස්ථානය</span>
+      </div>
+    </section>
+
+    <!-- Month Switcher & Minimal Search -->
+    <div class="controls-row no-print">
+      <div class="month-segmented">
+        <button class="segment-btn active" id="tabSep" onclick="switchMonth('sep')">
+          2026 සැප්තැම්බර් (චාම් වර්ණ 4)
+        </button>
+        <button class="segment-btn" id="tabNov" onclick="switchMonth('nov')">
+          2026 නොවැම්බර්
+        </button>
+        <button class="segment-btn" id="tabOct" onclick="switchMonth('oct')">
+          2026 ඔක්තෝම්බර්
+        </button>
+      </div>
+
+      <div class="search-box-charm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="searchInput" placeholder="නමක්, අංකයක්, තත්වයක් සොයන්න..." oninput="handleSearch(this.value)">
+      </div>
+    </div>
+
+    <!-- Cards Container -->
+    <div id="rosterCardsContainer" class="roster-grid">
+      <!-- Dynamically Rendered -->
+    </div>
+
+    <!-- Official Document Footer -->
+    <footer class="doc-footer">
+      <div id="footerLocation">📍 ස්ථානය : නමස්කාර මධ්‍යස්ථානය | බටගම සභාව</div>
+    </footer>
+  </main>
+
+  <!-- Modal: Add / Edit Day -->
+  <div class="modal-overlay" id="dayModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3 id="modalDayTitle">නව දිනයක් එකතු කරන්න</h3>
+        <button class="modal-close" onclick="closeModal('dayModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editDayIndex" value="-1">
+        <div class="field-group">
+          <label>දිනය සහ සතියේ දිනය:</label>
+          <input type="text" id="dayInputDate" class="field-input" placeholder="සැප්තැම්බර් ... වන සෙනසුරාදා / ඉරිදා 2026">
+        </div>
+        <div class="field-group">
+          <label>වර්ණ තේමාව:</label>
+          <select id="dayInputTheme" class="field-input">
+            <option value="gold">🟡 චාම් රන්වන් කහ (Gold Amber)</option>
+            <option value="green">🟢 චාම් හරිත මින්ට් (Mint Green)</option>
+            <option value="coral">🟠 චාම් පීච් කොරල් (Sunset Peach)</option>
+            <option value="violet">🟣 චාම් ලැවෙන්ඩර් වයලට් (Royal Lavender)</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>දින වර්ගය:</label>
+          <select id="dayInputType" class="field-input">
+            <option value="sat">සෙනසුරාදා</option>
+            <option value="sun">ඉරිදා</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>ස්ථානය:</label>
+          <input type="text" id="dayInputLocation" class="field-input" value="නමස්කාර මධ්‍යස්ථානය">
+        </div>
+        <div class="field-group">
+          <label>විශේෂ සටහනක් (Optional):</label>
+          <input type="text" id="dayInputNote" class="field-input" placeholder="සාමාන්‍ය සේවය සඳහා හිස්ව තබන්න">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('dayModal')">අවලංගු කරන්න</button>
+        <button class="btn btn-primary" onclick="saveDay()">සුරකින්න (Save Day)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Participant Live Status & WhatsApp Phone Editor -->
+  <div class="modal-overlay" id="statusModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3 id="modalStatusTitle">සේවා තත්වය සහ WhatsApp අංකය</h3>
+        <button class="modal-close" onclick="closeModal('statusModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="statusDayIndex" value="-1">
+        <input type="hidden" id="statusSlotIndex" value="-1">
+        <input type="hidden" id="statusPIndex" value="-1">
+        <input type="hidden" id="statusDocId" value="">
+
+        <div style="background:#f1f5f9; padding:8px 12px; border-radius:6px; font-size:0.86rem;">
+          <div style="font-weight:700;" id="statusModalPersonName">නම: -</div>
+          <div style="color:#64748b; font-size:0.8rem;" id="statusModalSlotDetails">දිනය & වේලාව: -</div>
+        </div>
+
+        <div class="field-group">
+          <label>WhatsApp Phone අංකය (Format: 947XXXXXXXX):</label>
+          <input type="tel" id="statusInputPhone" class="field-input" placeholder="94771234567" oninput="validatePhoneInput(this)">
+          <span style="font-size:0.72rem; color:#64748b;">(07X... ලෙස ඇතුළත් කළ විට 947... ලෙස ස්වයංක්‍රීයව හැඩගැසේ)</span>
+        </div>
+
+        <div class="field-group">
+          <label>සේවා තත්වය (Live Status):</label>
+          <select id="statusSelect" class="field-input" onchange="toggleStatusExtraFields(this.value)">
+            <option value="Waiting">⏳ Waiting (පොරොත්තු)</option>
+            <option value="Confirmed">✓ Confirmed (තහවුරු කළා)</option>
+            <option value="Swapped">⇄ Swapped / මාරු වුණා</option>
+            <option value="Declined">✗ Declined / පැමිණිය නොහැක</option>
+            <option value="Sent_1">✉️ Sent_1 (පණිවිඩය යැව්වා)</option>
+            <option value="Retry_1">🔁 Retry_1 (නැවත යැව්වා 1)</option>
+            <option value="Retry_2">🔁 Retry_2 (නැවත යැව්වා 2)</option>
+            <option value="Not_Seen">👁️‍🗨️ Not_Seen (බලා නැත)</option>
+          </select>
+        </div>
+
+        <!-- Swap Details Field -->
+        <div class="field-group" id="swapDetailsGroup" style="display:none;">
+          <label>මාරු වූ විස්තර (Swap Details):</label>
+          <input type="text" id="statusInputSwap" class="field-input" placeholder="උදා: සුරංග සමඟ මාරු විය">
+        </div>
+
+        <!-- Decline Reason Field -->
+        <div class="field-group" id="declineReasonGroup" style="display:none;">
+          <label>පැමිණිය නොහැකි හේතුව (Decline Reason):</label>
+          <input type="text" id="statusInputDecline" class="field-input" placeholder="උදා: අසනීප තත්වයක් නිසා">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('statusModal')">අවලංගු කරන්න</button>
+        <button class="btn btn-primary" onclick="saveParticipantStatusAndPhone()">සුරකින්න (Sync Firestore)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Full Summary Generator & Saved History -->
+  <div class="modal-overlay" id="summaryModal">
+    <div class="modal-card modal-card-wide">
+      <div class="modal-top">
+        <h3 id="modalSummaryTitle">📊 පොදු සේවය - පූර්ණ සාරාංශය (Live Summary)</h3>
+        <button class="modal-close" onclick="closeModal('summaryModal')">&times;</button>
+      </div>
+      <div class="modal-body-scroll">
+        <!-- Live Counts Stats Grid -->
+        <div class="summary-stats-grid">
+          <div class="stat-box stat-confirmed">
+            <div class="count" id="sumCountConfirmed">0</div>
+            <div class="label">Confirmed</div>
+          </div>
+          <div class="stat-box stat-swapped">
+            <div class="count" id="sumCountSwapped">0</div>
+            <div class="label">Swapped</div>
+          </div>
+          <div class="stat-box stat-declined">
+            <div class="count" id="sumCountDeclined">0</div>
+            <div class="label">Declined</div>
+          </div>
+          <div class="stat-box stat-pending">
+            <div class="count" id="sumCountPending">0</div>
+            <div class="label">Pending</div>
+          </div>
+          <div class="stat-box stat-total">
+            <div class="count" id="sumCountTotal">0</div>
+            <div class="label">Total Slots</div>
+          </div>
+        </div>
+
+        <!-- Grouped Lists -->
+        <div class="summary-group-card">
+          <div class="summary-group-title" style="background:#dcfce7; color:#15803d;">
+            <span>✓ තහවුරු කළ අය (Confirmed)</span>
+            <span id="sumBadgeConfirmed">0</span>
+          </div>
+          <ul class="summary-group-list" id="sumListConfirmed"></ul>
+        </div>
+
+        <div class="summary-group-card">
+          <div class="summary-group-title" style="background:#e0f2fe; color:#0369a1;">
+            <span>⇄ මාරු කරගත් අය (Swapped)</span>
+            <span id="sumBadgeSwapped">0</span>
+          </div>
+          <ul class="summary-group-list" id="sumListSwapped"></ul>
+        </div>
+
+        <div class="summary-group-card">
+          <div class="summary-group-title" style="background:#fee2e2; color:#b91c1c;">
+            <span>✗ පැමිණිය නොහැකි අය (Declined)</span>
+            <span id="sumBadgeDeclined">0</span>
+          </div>
+          <ul class="summary-group-list" id="sumListDeclined"></ul>
+        </div>
+
+        <div class="summary-group-card">
+          <div class="summary-group-title" style="background:#fef3c7; color:#92400e;">
+            <span>⏳ පොරොත්තු / ප්‍රතිචාර නැති අය (Pending / Not Seen)</span>
+            <span id="sumBadgePending">0</span>
+          </div>
+          <ul class="summary-group-list" id="sumListPending"></ul>
+        </div>
+
+        <!-- History Reports Section -->
+        <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:0.9rem; font-weight:700;">📜 පසුගිය වාර්තා ඉතිහාසය (Firestore daily_reports)</h4>
+            <button class="btn btn-secondary btn-sm" onclick="loadSavedDailyReports()">නැවත ලබාගන්න</button>
+          </div>
+          <div id="dailyReportsHistoryList" style="max-height:140px; overflow-y:auto; font-size:0.8rem; color:#475569;">
+            පසුගිය වාර්තා පූරණය වෙමින් පවතී...
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="saveCurrentSummaryToFirestore()">
+          💾 Save to Firestore (daily_reports)
+        </button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-secondary" onclick="closeModal('summaryModal')">වසන්න</button>
+          <button class="btn btn-primary" onclick="copyWhatsAppSummary()">
+            📋 WhatsApp සඳහා Copy කරන්න
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-box" id="toastBox">
+    <span id="toastMsg">සාර්ථකව සුරැකිණි!</span>
+  </div>
+
+  <script>
+    /* ========================================================
+       FIREBASE CONFIG & INITIALIZATION
+       ======================================================== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJlK53qLiUfD0xizwEhVK1FIClocebyxc",
+      authDomain: "cart-eeb7b.firebaseapp.com",
+      projectId: "cart-eeb7b",
+      storageBucket: "cart-eeb7b.firebasestorage.app",
+      messagingSenderId: "440674755166",
+      appId: "1:440674755166:web:3238d5d2491865e8eb4acf",
+      measurementId: "G-D2F8SPJ0XQ"
+    };
+
+    var db = null;
+    var firebaseConnected = false;
+    var liveBookings = {};  // Map of bookingId/key -> booking record
+    var liveContacts = {};  // Map of normalized name -> phone
+
+    try {
+      if (typeof firebase !== "undefined") {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        updateFirebaseStatus("live", "Firestore Live");
+        setupFirestoreListeners();
+      } else {
+        updateFirebaseStatus("offline", "Firebase Offline");
+      }
+    } catch(err) {
+      console.warn("Firebase Init Error:", err);
+      updateFirebaseStatus("offline", "Firebase Offline");
+    }
+
+    function updateFirebaseStatus(state, text) {
+      var pill = document.getElementById("firebaseStatusPill");
+      var span = document.getElementById("firebaseStatusText");
+      if (pill && span) {
+        pill.className = "fb-pill " + state;
+        span.textContent = text;
+      }
+      firebaseConnected = (state === "live");
+    }
+
+    function checkFirebaseConnection() {
+      if (!db) {
+        showToast("Firebase සම්බන්ද වී නැත (Offline Mode)");
+        return;
+      }
+      showToast(firebaseConnected ? "Firestore Realtime සක්‍රියයි!" : "Firestore සම්බන්ධ වෙමින් පවතී...");
+    }
+
+    /* ========================================================
+       FIRESTORE REAL-TIME LISTENERS
+       ======================================================== */
+    function setupFirestoreListeners() {
+      if (!db) return;
+
+      // 1. Real-time sync with `bookings` collection
+      db.collection("bookings").onSnapshot(function(snapshot) {
+        liveBookings = {};
+        snapshot.forEach(function(doc) {
+          var data = doc.data();
+          data._docId = doc.id;
+          
+          // Index by doc ID and compound keys
+          liveBookings[doc.id] = data;
+          
+          if (data.eventDate && data.eventTime && data.name) {
+            var cKey = makeCompositeBookingKey(data.eventDate, data.eventTime, data.name);
+            liveBookings[cKey] = data;
+          }
+        });
+        updateFirebaseStatus("live", "Firestore Live");
+        renderCurrentMonth();
+      }, function(error) {
+        console.warn("Firestore bookings listener warning:", error);
+        updateFirebaseStatus("connecting", "Reconnecting...");
+      });
+
+      // 2. Real-time sync with `contacts` collection
+      db.collection("contacts").onSnapshot(function(snapshot) {
+        liveContacts = {};
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          if (d.name && d.phone) {
+            liveContacts[d.name.trim()] = formatWhatsAppPhone(d.phone);
+          }
+        });
+      }, function(err) {
+        console.warn("Contacts listener warning:", err);
+      });
+    }
+
+    function makeBookingDocId(eventDate, eventTime, pIndex) {
+      return (eventDate + "_" + eventTime + "_" + pIndex)
+        .replace(/[^\w\u0D80-\u0DFF]/g, "_")
+        .substring(0, 110);
+    }
+
+    function makeCompositeBookingKey(eventDate, eventTime, name) {
+      return (eventDate + "__" + eventTime + "__" + (name || "")).trim();
+    }
+
+    function getBookingForSlot(day, slot, pIndex, personName) {
+      if (!personName) return null;
+      var docId = makeBookingDocId(day.date, slot.time, pIndex);
+      if (liveBookings[docId]) return liveBookings[docId];
+
+      var cKey = makeCompositeBookingKey(day.date, slot.time, personName);
+      if (liveBookings[cKey]) return liveBookings[cKey];
+
+      // Fallback: search in liveBookings
+      for (var k in liveBookings) {
+        var b = liveBookings[k];
+        if (b && b.eventDate === day.date && b.eventTime === slot.time && b.name === personName) {
+          return b;
+        }
+      }
+      return null;
+    }
+
+    function getPhoneForPerson(personName, slotBooking) {
+      if (!personName) return "";
+      if (slotBooking && slotBooking.phone) {
+        return formatWhatsAppPhone(slotBooking.phone);
+      }
+      if (liveContacts[personName.trim()]) {
+        return liveContacts[personName.trim()];
+      }
+      return "";
+    }
+
+    /* WhatsApp Phone Formatter (947XXXXXXXX) */
+    function formatWhatsAppPhone(phone) {
+      if (!phone) return "";
+      var digits = String(phone).replace(/\D/g, "");
+      if (digits.startsWith("07") && digits.length === 10) {
+        return "94" + digits.substring(1);
+      } else if (digits.startsWith("7") && digits.length === 9) {
+        return "94" + digits;
+      } else if (digits.startsWith("947") && digits.length === 11) {
+        return digits;
+      }
+      return digits;
+    }
+
+    function validatePhoneInput(input) {
+      var formatted = formatWhatsAppPhone(input.value);
+      if (formatted.length <= 11) {
+        input.value = formatted;
+      }
+    }
+
+    /* ========================================================
+       SCHEDULE DATA STRUCTURES
+       ======================================================== */
+    var SEPTEMBER_DATA = [
+      {
+        date: "සැප්තැම්බර් 05 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "gold",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.00 - 8.30", participants: ["බර්නාඩ්", "රන්දික", "ඩිලානි"] },
+          { time: "උදේ 8.30 - 10.00", participants: ["ඉමාරා", "තෙහාන්", "කුමුදුනී"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["ඉෂාකා", "ශයිනි", "සුහානි"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 06 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "gold",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.30 - 9.00", participants: ["සුරංග", "ලක්මාලි", "මන්දාකිණි"] },
+          { time: "උදේ 9.00 - 10.30", participants: ["මධුශාන්", "ලක්ෂානි", "භාග්‍යා"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 12 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "green",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.00 - 8.30", participants: ["ශෙහාන්", "දුලානි", "ප්‍රවීන්"] },
+          { time: "උදේ 8.30 - 10.00", participants: ["ලක්ෂිකා", "නිෂානි", "සදුනි"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["තරංග කුමාර", "සමින්ද", "තරුෂ"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 13 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "green",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.30 - 9.00", participants: ["තරංග පෙරේරා", "නිරංජලා", "ෆැටිමා"] },
+          { time: "උදේ 9.00 - 10.30", participants: ["චමින්ද", "ප්‍රභාත්", "තරිඳු"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 19 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "coral",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.00 - 8.30", participants: ["විතාල්", "කල්පනී", "දිනේෂ්"] },
+          { time: "උදේ 8.30 - 10.00", participants: ["ශ්‍රේෂන්", "ලක්ෂ්මි", "කවීෂා"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["මොහාන්", "ජොසෆින්", "නවෝදිනී"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 20 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "coral",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.30 - 9.00", participants: ["අකිලේෂ", "සිදත්", "නිලන්ති"] },
+          { time: "උදේ 9.00 - 10.30", participants: ["ලලිතා", "වසන්ති", "ස්නේහා"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 26 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "violet",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.00 - 8.30", participants: ["සුබෂ්", "රොෂේන්", "බර්නාඩ්"] },
+          { time: "උදේ 8.30 - 10.00", participants: ["චමින්ද", "ප්‍රවීන්", "ප්‍රභාත්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["රන්දික", "ඩිලානි", "ඉමාරා"] }
+        ]
+      },
+      {
+        date: "සැප්තැම්බර් 27 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "violet",
+        location: "නමස්කාර මධ්‍යස්ථානය",
+        slots: [
+          { time: "උදේ 7.30 - 9.00", participants: ["තරුන්", "ශාන්ත", "මිශායෙල්"] },
+          { time: "උදේ 9.00 - 10.30", participants: ["සමීර", "සිතුමි", "මනුෂ"] }
+        ]
+      }
+    ];
+
+    var NOVEMBER_DATA = [
+      {
+        date: "නොවැම්බර් 01 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "gold",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["රජිත", "ප්‍රියංකා", "රීටා"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["තරංග පෙරේරා", "නිරංජලා", "ෆැටිමා"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 07 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "green",
+        location: "වැලිගම්පිටිය හන්දිය",
+        note: "WHQ",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["WHQ", "", ""] },
+          { time: "උදේ 08.30 - 10.00", participants: ["WHQ", "", ""] },
+          { time: "උදේ 10.00 - 11.30", participants: ["WHQ", "", ""] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 08 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "green",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["ශාන්ත", "වරුනි", "මිශායෙල්"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["සමින්ද", "සංජීවනී", "තරංග"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 14 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "coral",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["රන්දික", "දිලානි", "පද්මිනි"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["තරංග කුමාර", "ඉමාරා", "තෙහාන්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["ආශා", "මරල්", "භාග්‍යා"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 15 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "coral",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["දුලාජ්", "ශෙරින්", "හශිනි"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["ඉෂාකා", "ස්නේහා", "ශයිනි"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 21 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "violet",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["සුරංග", "ලක්මාලි", "මන්දාකිනි"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["විතාල්", "කල්පනි", "ශ්‍රියානි බොතේජු"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["දිනේෂ්", "පවිත්‍රා", "සමීර"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 22 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "violet",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["බර්නාඩ්", "ඉරෝශනි", "මනුශ"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["ප්‍රභාත්", "නිශානි", "සදුනි"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 28 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "gold",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["සිදත්", "නිලන්ති", "ලලිතා"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["ශෙහාන්", "දුලානි", "තරුන්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["ප්‍රවීන්", "රොශිත්", "කුමුදුනි"] }
+        ]
+      },
+      {
+        date: "නොවැම්බර් 29 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "gold",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["රොශේන්", "සඳමාලා", "මාලනි"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["ශ්‍රේෂන්", "ලක්ෂ්මි", "කවීෂා"] }
+        ]
+      }
+    ];
+
+    var OCTOBER_DATA = [
+      {
+        date: "ඔක්තෝම්බර් 03 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "green",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["සුරංග", "ලක්මාලි", "මන්දාකිනි"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["තරංග කුමාර", "කුමාරා", "තෙහාන්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["ඉෂාකා", "ස්නේහා", "ශයිනි"] }
+        ]
+      },
+      {
+        date: "ඔක්තෝම්බර් 04 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "green",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["ශෙහාන්", "දුලානි", "ප්‍රවීන්"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["තරංග පෙරේරා", "නිරංජලා", "ෆැටිමා"] }
+        ]
+      },
+      {
+        date: "ඔක්තෝම්බර් 10 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "gold",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["සුරංග", "ලක්මාලි", "මන්දාකිනි"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["තරංග කුමාර", "කුමාරා", "තෙහාන්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["ඉෂාකා", "ස්නේහා", "ශයිනි"] }
+        ]
+      },
+      {
+        date: "ඔක්තෝම්බර් 11 වන ඉරිදා 2026",
+        type: "sun",
+        theme: "gold",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.30 - 09.00", participants: ["ශාන්ත", "වරුනි", "මිශායෙල්"] },
+          { time: "උදේ 09.00 - 10.30", participants: ["සුජිත්", "නවෝදිනී", "භාග්‍යා"] }
+        ]
+      },
+      {
+        date: "ඔක්තෝම්බර් 17 වන සෙනසුරාදා 2026",
+        type: "sat",
+        theme: "coral",
+        location: "වැලිගම්පිටිය හන්දිය",
+        slots: [
+          { time: "උදේ 07.00 - 08.30", participants: ["රන්දික", "දිලානි", "සුබෂ්"] },
+          { time: "උදේ 08.30 - 10.00", participants: ["මධුශාන්", "ලක්ෂානි", "තරුන්"] },
+          { time: "උදේ 10.00 - 11.30", participants: ["සමින්ද", "සංජීවනී", "තරුෂ"] }
+        ]
+      }
+    ];
+
+    var currentMonth = "sep";
+    var rosterStore = {
+      sep: JSON.parse(JSON.stringify(SEPTEMBER_DATA)),
+      nov: JSON.parse(JSON.stringify(NOVEMBER_DATA)),
+      oct: JSON.parse(JSON.stringify(OCTOBER_DATA))
+    };
+
+    var STORE_KEY = "batagama_roster_charm_v2_";
+
+    function initData() {
+      try {
+        var sSep = localStorage.getItem(STORE_KEY + "sep");
+        if (sSep) rosterStore.sep = JSON.parse(sSep);
+        var sNov = localStorage.getItem(STORE_KEY + "nov");
+        if (sNov) rosterStore.nov = JSON.parse(sNov);
+        var sOct = localStorage.getItem(STORE_KEY + "oct");
+        if (sOct) rosterStore.oct = JSON.parse(sOct);
+      } catch(e) {}
+
+      renderCurrentMonth();
+    }
+
+    function switchMonth(m) {
+      currentMonth = m;
+      document.getElementById("tabSep").classList.toggle("active", m === "sep");
+      document.getElementById("tabNov").classList.toggle("active", m === "nov");
+      document.getElementById("tabOct").classList.toggle("active", m === "oct");
+      
+      var heroSpan = document.getElementById("heroMonthLabel");
+      var heroLoc = document.getElementById("heroLocationLabel");
+      var footerLoc = document.getElementById("footerLocation");
+
+      if (m === "sep") {
+        heroSpan.textContent = "2026 සැප්තැම්බර් මාසික කාලසටහන";
+        heroLoc.textContent = "📍 ස්ථානය : නමස්කාර මධ්‍යස්ථානය";
+        footerLoc.textContent = "📍 ස්ථානය : නමස්කාර මධ්‍යස්ථානය | බටගම සභාව";
+      } else if (m === "nov") {
+        heroSpan.textContent = "2026 නොවැම්බර් මාසික කාලසටහන";
+        heroLoc.textContent = "📍 ස්ථානය : වැලිගම්පිටිය හන්දිය";
+        footerLoc.textContent = "📍 ස්ථානය : වැලිගම්පිටිය හන්දිය | බටගම සභාව";
+      } else {
+        heroSpan.textContent = "2026 ඔක්තෝම්බර් මාසික කාලසටහන";
+        heroLoc.textContent = "📍 ස්ථානය : වැලිගම්පිටිය හන්දිය";
+        footerLoc.textContent = "📍 ස්ථානය : වැලිගම්පිටිය හන්දිය | බටගම සභාව";
+      }
+
+      renderCurrentMonth();
+    }
+
+    function getActiveData() {
+      return rosterStore[currentMonth];
+    }
+
+    function persistActiveData(msg, quiet) {
+      try {
+        localStorage.setItem(STORE_KEY + currentMonth, JSON.stringify(getActiveData()));
+      } catch(e) {}
+      if (!quiet && msg) {
+        showToast(msg);
+      }
+    }
+
+    function resetActiveMonthData() {
+      var mNames = { sep: "සැප්තැම්බර්", nov: "නොවැම්බර්", oct: "ඔක්තෝම්බර්" };
+      if (confirm(mNames[currentMonth] + " මාසයේ දත්ත නැවත මුල් තත්වයට හරවන්නද?")) {
+        if (currentMonth === "sep") rosterStore.sep = JSON.parse(JSON.stringify(SEPTEMBER_DATA));
+        if (currentMonth === "nov") rosterStore.nov = JSON.parse(JSON.stringify(NOVEMBER_DATA));
+        if (currentMonth === "oct") rosterStore.oct = JSON.parse(JSON.stringify(OCTOBER_DATA));
+        persistActiveData("මුල් දත්ත සාර්ථකව පිහිටුවන ලදී!");
+        renderCurrentMonth();
+      }
+    }
+
+    var searchFilter = "";
+    function handleSearch(val) {
+      searchFilter = val.trim().toLowerCase();
+      renderCurrentMonth();
+    }
+
+    /* DIRECT INLINE EDITING LOGIC */
+    function handleCellKey(e, el) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el.blur();
+      }
+    }
+
+    function updateParticipant(dayIndex, slotIndex, pIndex, val) {
+      var active = getActiveData();
+      var text = val.trim();
+      if (text === "-") text = "";
+      if (active[dayIndex] && active[dayIndex].slots[slotIndex]) {
+        var old = active[dayIndex].slots[slotIndex].participants[pIndex] || "";
+        if (old !== text) {
+          active[dayIndex].slots[slotIndex].participants[pIndex] = text;
+          persistActiveData("නම සුරැකිණි: " + (text || "හිස් කරන ලදී"), false);
+          
+          // Sync with Firestore bookings if db is available
+          if (db && text) {
+            syncSlotToFirestore(active[dayIndex], active[dayIndex].slots[slotIndex], pIndex, text);
+          }
+        }
+      }
+    }
+
+    function updateSlotTime(dayIndex, slotIndex, val) {
+      var active = getActiveData();
+      var text = val.trim();
+      if (active[dayIndex] && active[dayIndex].slots[slotIndex]) {
+        var old = active[dayIndex].slots[slotIndex].time;
+        if (old !== text && text) {
+          active[dayIndex].slots[slotIndex].time = text;
+          persistActiveData("වේලාව සුරැකිණි: " + text, false);
+        }
+      }
+    }
+
+    function updateDayDate(dayIndex, val) {
+      var active = getActiveData();
+      var text = val.trim().replace(/^දිනය\s*:\s*/, "");
+      if (active[dayIndex]) {
+        var old = active[dayIndex].date;
+        if (old !== text && text) {
+          active[dayIndex].date = text;
+          persistActiveData("දිනය සුරැකිණි!", false);
+        }
+      }
+    }
+
+    function updateDayLocation(dayIndex, val) {
+      var active = getActiveData();
+      var text = val.trim().replace(/^ස්ථානය\s*:\s*/, "");
+      if (active[dayIndex]) {
+        var old = active[dayIndex].location;
+        if (old !== text && text) {
+          active[dayIndex].location = text;
+          persistActiveData("ස්ථානය සුරැකිණි!", false);
+        }
+      }
+    }
+
+    function handleQuickThemeChange(dayIndex, newTheme) {
+      var active = getActiveData();
+      if (active[dayIndex]) {
+        active[dayIndex].theme = newTheme;
+        persistActiveData("වර්ණ තේමාව වෙනස් විය!", false);
+        renderCurrentMonth();
+      }
+    }
+
+    function quickAddSlot(dayIndex) {
+      var active = getActiveData();
+      if (active[dayIndex]) {
+        active[dayIndex].slots.push({
+          time: "උදේ 10.00 - 11.30",
+          participants: ["", "", ""]
+        });
+        persistActiveData("නව පේළියක් එකතු විය!", false);
+        renderCurrentMonth();
+      }
+    }
+
+    function quickDeleteSlot(dayIndex, slotIndex) {
+      var active = getActiveData();
+      if (active[dayIndex] && active[dayIndex].slots.length > 1) {
+        active[dayIndex].slots.splice(slotIndex, 1);
+        persistActiveData("පේළිය ඉවත් විය!", false);
+        renderCurrentMonth();
+      } else {
+        alert("අවම වශයෙන් එක් සේවා වාරයක් තිබිය යුතුය!");
+      }
+    }
+
+    /* ========================================================
+       RENDER SCHEDULE CARDS (WITH LIVE STATUS & WHATSAPP)
+       ======================================================== */
+    function renderCurrentMonth() {
+      var data = getActiveData();
+      var container = document.getElementById("rosterCardsContainer");
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:32px; color:#64748b; background:white; border-radius:8px; border:1.5px solid #000000;">කිසිදු දිනයක් නැත. \'නව දිනයක්\' බොත්තම ඔබන්න.</div>';
+        return;
+      }
+
+      var html = "";
+      data.forEach(function(day, dayIndex) {
+        var theme = day.theme || "gold";
+
+        var matches = true;
+        if (searchFilter) {
+          var dMatch = day.date.toLowerCase().indexOf(searchFilter) !== -1;
+          var lMatch = day.location.toLowerCase().indexOf(searchFilter) !== -1;
+          var nMatch = day.note && day.note.toLowerCase().indexOf(searchFilter) !== -1;
+          var sMatch = day.slots && day.slots.some(function(s, sIdx) {
+            return s.time.toLowerCase().indexOf(searchFilter) !== -1 ||
+              s.participants.some(function(p, pIdx) {
+                if (!p) return false;
+                var pMatch = p.toLowerCase().indexOf(searchFilter) !== -1;
+                var b = getBookingForSlot(day, s, pIdx, p);
+                var phone = getPhoneForPerson(p, b);
+                var phMatch = phone && phone.indexOf(searchFilter) !== -1;
+                var stMatch = b && b.status && b.status.toLowerCase().indexOf(searchFilter) !== -1;
+                return pMatch || phMatch || stMatch;
+              });
+          });
+          matches = dMatch || lMatch || nMatch || sMatch;
+        }
+
+        if (!matches) return;
+
+        html += '<div class="day-card theme-' + theme + '">';
+        
+        // Header Bar
+        html += '<div class="card-header-bar">';
+        html += '<span class="date-heading-text" contenteditable="true" spellcheck="false" onblur="updateDayDate(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit date">දිනය : ' + escapeHtml(day.date) + '</span>';
+
+        html += '<div class="header-right">';
+        html += '<span class="loc-text" contenteditable="true" spellcheck="false" onblur="updateDayLocation(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit location">ස්ථානය : ' + escapeHtml(day.location) + '</span>';
+        
+        html += '<select class="theme-select-quick no-print" onchange="handleQuickThemeChange(' + dayIndex + ', this.value)" title="Change Theme Color">';
+        html += '<option value="gold"' + (theme === 'gold' ? ' selected' : '') + '>Gold</option>';
+        html += '<option value="green"' + (theme === 'green' ? ' selected' : '') + '>Green</option>';
+        html += '<option value="coral"' + (theme === 'coral' ? ' selected' : '') + '>Peach</option>';
+        html += '<option value="violet"' + (theme === 'violet' ? ' selected' : '') + '>Violet</option>';
+        html += '</select>';
+
+        html += '<button class="btn-card-del no-print" onclick="deleteDay(' + dayIndex + ')" title="දිනය ඉවත් කරන්න">✕</button>';
+        html += '</div></div>';
+
+        // Table
+        html += '<table class="roster-table">';
+        html += '<thead><tr class="sub-header-bar">';
+        html += '<th class="col-time">වේලාව</th>';
+
+        if (day.note && day.note.trim()) {
+          html += '<th class="col-p" colspan="3">සහභාගිවන්නන් (Special Duty)</th>';
+        } else {
+          html += '<th class="col-p" colspan="3">සහභාගිවන්නන්</th>';
+        }
+        html += '<th class="col-act no-print"></th>';
+        html += '</tr></thead><tbody>';
+
+        if (day.note && day.note.trim()) {
+          html += '<tr><td><div style="display:flex; flex-direction:column; gap:3px; align-items:center;">';
+          day.slots.forEach(function(s) {
+            html += '<span class="time-text">' + escapeHtml(s.time) + '</span>';
+          });
+          html += '</div></td>';
+          html += '<td colspan="3" style="padding: 16px;">';
+          html += '<div class="whq-pill-badge"><span>🏛️</span><span>' + escapeHtml(day.note) + '</span></div>';
+          html += '</td>';
+          html += '<td class="td-action no-print"></td>';
+          html += '</tr>';
+        } else {
+          day.slots.forEach(function(slot, slotIndex) {
+            html += '<tr>';
+            html += '<td><span class="time-text" contenteditable="true" spellcheck="false" onblur="updateSlotTime(' + dayIndex + ',' + slotIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)">' + escapeHtml(slot.time) + '</span></td>';
+
+            // 3 Participant columns
+            for (var pIdx = 0; pIdx < 3; pIdx++) {
+              var pName = slot.participants[pIdx] || "";
+              var booking = getBookingForSlot(day, slot, pIdx, pName);
+              var phone = getPhoneForPerson(pName, booking);
+
+              html += '<td>';
+              html += '<div class="participant-cell-wrap">';
+              
+              // Name (Inline Editable)
+              html += '<span class="name-editable ' + (!pName ? 'empty' : '') + '" contenteditable="true" spellcheck="false" onblur="updateParticipant(' + dayIndex + ',' + slotIndex + ',' + pIdx + ', this.textContent)" onkeydown="handleCellKey(event, this)">' + (pName ? escapeHtml(pName) : '-') + '</span>';
+
+              // If person is assigned, render Live Status badge + WhatsApp badge
+              if (pName) {
+                html += '<div class="live-meta-row">';
+                
+                // Status Badge
+                var status = (booking && booking.status) ? booking.status : "Waiting";
+                var statusInfo = formatStatusBadge(status, booking);
+                html += '<span class="status-badge ' + statusInfo.cls + '" onclick="openStatusModal(' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Click to change status">' + statusInfo.html + '</span>';
+
+                // WhatsApp Phone Badge
+                if (phone) {
+                  html += '<a href="https://wa.me/' + phone + '" target="_blank" class="phone-badge wa-link no-print" title="Chat on WhatsApp: ' + phone + '">📞 ' + escapeHtml(phone.substring(2)) + '</a>';
+                } else {
+                  html += '<span class="phone-badge add-phone no-print" onclick="openStatusModal(' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Add WhatsApp Phone">+ 📞</span>';
+                }
+
+                html += '</div>';
+              }
+
+              html += '</div>';
+              html += '</td>';
+            }
+
+            html += '<td class="td-action no-print"><button class="btn-row-del" onclick="quickDeleteSlot(' + dayIndex + ',' + slotIndex + ')" title="පේළිය මකන්න">&times;</button></td></tr>';
+          });
+        }
+
+        html += '</tbody></table>';
+
+        // Card Bottom Quick Bar
+        html += '<div class="card-footer-quickbar no-print">';
+        html += '<button class="btn-quick-add" onclick="quickAddSlot(' + dayIndex + ')">+ පේළියක් එකතු කරන්න</button>';
+        html += '</div>';
+
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+    }
+
+    function formatStatusBadge(status, booking) {
+      if (status === "Confirmed") {
+        return { cls: "status-confirmed", html: "✓ Confirmed" };
+      } else if (status === "Swapped") {
+        var detail = (booking && booking.swapDetails) ? (": " + escapeHtml(booking.swapDetails)) : "";
+        return { cls: "status-swapped", html: "⇄ Swapped" + detail };
+      } else if (status === "Declined") {
+        var reason = (booking && booking.declineReason) ? (": " + escapeHtml(booking.declineReason)) : "";
+        return { cls: "status-declined", html: "✗ Declined" + reason };
+      } else {
+        // Pending states: Waiting, Sent_1, Retry_1, Retry_2, Not_Seen
+        var label = "Pending";
+        if (status === "Sent_1") label = "Sent (1)";
+        else if (status === "Retry_1") label = "Retry (1)";
+        else if (status === "Retry_2") label = "Retry (2)";
+        else if (status === "Not_Seen") label = "Not Seen";
+        else if (status === "Waiting") label = "Waiting";
+        return { cls: "status-pending", html: "⏳ " + label };
+      }
+    }
+
+    /* ========================================================
+       FIRESTORE WRITES: PARTICIPANT STATUS & PHONE
+       ======================================================== */
+    function syncSlotToFirestore(day, slot, pIndex, personName) {
+      if (!db || !personName) return;
+      var docId = makeBookingDocId(day.date, slot.time, pIndex);
+      var currentPhone = getPhoneForPerson(personName, null);
+      
+      var docRef = db.collection("bookings").doc(docId);
+      docRef.get().then(function(doc) {
+        if (!doc.exists) {
+          docRef.set({
+            name: personName,
+            phone: currentPhone || "",
+            eventDate: day.date,
+            eventTime: slot.time,
+            location: day.location || "නමස්කාර මධ්‍යස්ථානය",
+            days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+            status: "Waiting",
+            retryCount: 0,
+            declineReason: "",
+            swapDetails: "",
+            lastSentAt: null,
+            summarySent: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }).catch(function(e){ console.warn("Firestore syncSlot error:", e); });
+    }
+
+    function openStatusModal(dayIndex, slotIndex, pIndex) {
+      var active = getActiveData();
+      var day = active[dayIndex];
+      var slot = day.slots[slotIndex];
+      var personName = slot.participants[pIndex] || "";
+      if (!personName) return;
+
+      var docId = makeBookingDocId(day.date, slot.time, pIndex);
+      var booking = getBookingForSlot(day, slot, pIndex, personName);
+      var phone = getPhoneForPerson(personName, booking);
+
+      document.getElementById("statusDayIndex").value = dayIndex;
+      document.getElementById("statusSlotIndex").value = slotIndex;
+      document.getElementById("statusPIndex").value = pIndex;
+      document.getElementById("statusDocId").value = docId;
+
+      document.getElementById("statusModalPersonName").textContent = "නම: " + personName;
+      document.getElementById("statusModalSlotDetails").textContent = day.date + " | " + slot.time;
+      document.getElementById("statusInputPhone").value = phone;
+
+      var statusVal = (booking && booking.status) ? booking.status : "Waiting";
+      document.getElementById("statusSelect").value = statusVal;
+      document.getElementById("statusInputSwap").value = (booking && booking.swapDetails) ? booking.swapDetails : "";
+      document.getElementById("statusInputDecline").value = (booking && booking.declineReason) ? booking.declineReason : "";
+
+      toggleStatusExtraFields(statusVal);
+      openModal("statusModal");
+    }
+
+    function toggleStatusExtraFields(val) {
+      document.getElementById("swapDetailsGroup").style.display = (val === "Swapped") ? "flex" : "none";
+      document.getElementById("declineReasonGroup").style.display = (val === "Declined") ? "flex" : "none";
+    }
+
+    function saveParticipantStatusAndPhone() {
+      var dayIndex = parseInt(document.getElementById("statusDayIndex").value);
+      var slotIndex = parseInt(document.getElementById("statusSlotIndex").value);
+      var pIndex = parseInt(document.getElementById("statusPIndex").value);
+      var docId = document.getElementById("statusDocId").value;
+
+      var active = getActiveData();
+      var day = active[dayIndex];
+      var slot = day.slots[slotIndex];
+      var personName = slot.participants[pIndex];
+
+      var rawPhone = document.getElementById("statusInputPhone").value.trim();
+      var formattedPhone = formatWhatsAppPhone(rawPhone);
+      var status = document.getElementById("statusSelect").value;
+      var swapDetails = document.getElementById("statusInputSwap").value.trim();
+      var declineReason = document.getElementById("statusInputDecline").value.trim();
+
+      if (rawPhone && formattedPhone.length !== 11) {
+        alert("කරුණාකර නිවැරදි 947XXXXXXXX ආකාරයේ WhatsApp අංකයක් ඇතුළත් කරන්න!");
+        return;
+      }
+
+      // 1. Update contacts memory & collection
+      if (personName && formattedPhone) {
+        liveContacts[personName.trim()] = formattedPhone;
+        if (db) {
+          db.collection("contacts").doc(personName.trim()).set({
+            name: personName.trim(),
+            phone: formattedPhone,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      }
+
+      // 2. Update booking document in Firestore
+      var bookingData = {
+        name: personName,
+        phone: formattedPhone || "",
+        eventDate: day.date,
+        eventTime: slot.time,
+        location: day.location || "නමස්කාර මධ්‍යස්ථානය",
+        days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+        status: status,
+        retryCount: 0,
+        declineReason: (status === "Declined") ? declineReason : "",
+        swapDetails: (status === "Swapped") ? swapDetails : "",
+        lastSentAt: firebase.firestore.FieldValue.serverTimestamp(),
+        summarySent: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (db) {
+        db.collection("bookings").doc(docId).set(bookingData, { merge: true }).then(function() {
+          showToast("Firestore Booking තත්වය සුරැකිණි!");
+        }).catch(function(e) {
+          console.warn("Firestore booking write warning:", e);
+        });
+      }
+
+      // Local optimistic update
+      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, bookingData);
+      var cKey = makeCompositeBookingKey(day.date, slot.time, personName);
+      liveBookings[cKey] = liveBookings[docId];
+
+      closeModal("statusModal");
+      renderCurrentMonth();
+      showToast("තත්වය සාර්ථකව සුරැකිණි!");
+    }
+
+    /* ========================================================
+       FULL SUMMARY GENERATOR & FIRESTORE daily_reports
+       ======================================================== */
+    var latestSummaryData = null;
+
+    function openSummaryModal() {
+      generateFullSummaryData();
+      renderSummaryUI();
+      loadSavedDailyReports();
+      openModal("summaryModal");
+    }
+
+    function generateFullSummaryData() {
+      var active = getActiveData();
+      var confirmed = [];
+      var swapped = [];
+      var declined = [];
+      var pending = [];
+      var total = 0;
+
+      active.forEach(function(day) {
+        if (day.note && day.note.trim()) {
+          // Special WHQ duty
+          total += day.slots.length;
+          return;
+        }
+
+        day.slots.forEach(function(slot, sIdx) {
+          for (var pIdx = 0; pIdx < 3; pIdx++) {
+            var pName = slot.participants[pIdx];
+            if (!pName) continue;
+            total++;
+
+            var booking = getBookingForSlot(day, slot, pIdx, pName);
+            var phone = getPhoneForPerson(pName, booking);
+            var status = (booking && booking.status) ? booking.status : "Waiting";
+
+            var item = {
+              name: pName,
+              phone: phone,
+              date: day.date,
+              time: slot.time,
+              location: day.location,
+              status: status,
+              swapDetails: (booking && booking.swapDetails) ? booking.swapDetails : "",
+              declineReason: (booking && booking.declineReason) ? booking.declineReason : ""
+            };
+
+            if (status === "Confirmed") {
+              confirmed.push(item);
+            } else if (status === "Swapped") {
+              swapped.push(item);
+            } else if (status === "Declined") {
+              declined.push(item);
+            } else {
+              pending.push(item);
+            }
+          }
+        });
+      });
+
+      latestSummaryData = {
+        month: currentMonth,
+        monthLabel: document.getElementById("heroMonthLabel").textContent,
+        confirmed: confirmed,
+        swapped: swapped,
+        declined: declined,
+        pending: pending,
+        total: total,
+        generatedAt: new Date()
+      };
+      return latestSummaryData;
+    }
+
+    function renderSummaryUI() {
+      if (!latestSummaryData) return;
+      var s = latestSummaryData;
+
+      document.getElementById("sumCountConfirmed").textContent = s.confirmed.length;
+      document.getElementById("sumCountSwapped").textContent = s.swapped.length;
+      document.getElementById("sumCountDeclined").textContent = s.declined.length;
+      document.getElementById("sumCountPending").textContent = s.pending.length;
+      document.getElementById("sumCountTotal").textContent = s.total;
+
+      document.getElementById("sumBadgeConfirmed").textContent = s.confirmed.length;
+      document.getElementById("sumBadgeSwapped").textContent = s.swapped.length;
+      document.getElementById("sumBadgeDeclined").textContent = s.declined.length;
+      document.getElementById("sumBadgePending").textContent = s.pending.length;
+
+      // Render Lists
+      renderSummaryItemList("sumListConfirmed", s.confirmed, function(item) {
+        return '<strong>' + escapeHtml(item.name) + '</strong> <span style="color:#64748b;">(' + escapeHtml(item.date) + ' | ' + escapeHtml(item.time) + ')</span>';
+      });
+
+      renderSummaryItemList("sumListSwapped", s.swapped, function(item) {
+        var detail = item.swapDetails ? (' ➔ <em>' + escapeHtml(item.swapDetails) + '</em>') : '';
+        return '<strong>' + escapeHtml(item.name) + '</strong> <span style="color:#64748b;">(' + escapeHtml(item.date) + ')</span>' + detail;
+      });
+
+      renderSummaryItemList("sumListDeclined", s.declined, function(item) {
+        var reason = item.declineReason ? (' ➔ <em>' + escapeHtml(item.declineReason) + '</em>') : '';
+        return '<strong>' + escapeHtml(item.name) + '</strong> <span style="color:#64748b;">(' + escapeHtml(item.date) + ')</span>' + reason;
+      });
+
+      renderSummaryItemList("sumListPending", s.pending, function(item) {
+        var ph = item.phone ? ('📞 ' + escapeHtml(item.phone)) : '<em style="color:#94a3b8;">No phone</em>';
+        return '<strong>' + escapeHtml(item.name) + '</strong> <span style="color:#64748b;">(' + escapeHtml(item.status) + ')</span> <span>' + ph + '</span>';
+      });
+    }
+
+    function renderSummaryItemList(elementId, items, formatter) {
+      var ul = document.getElementById(elementId);
+      if (!ul) return;
+      if (!items || items.length === 0) {
+        ul.innerHTML = '<li style="color:#94a3b8; font-style:italic;">කිසිවෙකු නැත</li>';
+        return;
+      }
+      var html = "";
+      items.forEach(function(item) {
+        html += '<li>' + formatter(item) + '</li>';
+      });
+      ul.innerHTML = html;
+    }
+
+    function buildWhatsAppSummaryText() {
+      if (!latestSummaryData) generateFullSummaryData();
+      var s = latestSummaryData;
+
+      var text = "📊 *පොදු සේවය - බටගම සභාව*\n";
+      text += "*" + s.monthLabel + " සේවා සාරාංශය*\n\n";
+
+      text += "✅ *තහවුරු කළ අය (Confirmed) - " + s.confirmed.length + "*\n";
+      if (s.confirmed.length === 0) text += "_(කිසිවෙකු නැත)_\n";
+      s.confirmed.forEach(function(item) {
+        text += "• *" + item.name + "* - " + item.date + " (" + item.time + ")\n";
+      });
+
+      text += "\n🔄 *මාරු කරගත් අය (Swapped) - " + s.swapped.length + "*\n";
+      if (s.swapped.length === 0) text += "_(කිසිවෙකු නැත)_\n";
+      s.swapped.forEach(function(item) {
+        var d = item.swapDetails ? (" -> " + item.swapDetails) : "";
+        text += "• *" + item.name + "* (" + item.date + ")" + d + "\n";
+      });
+
+      text += "\n❌ *පැමිණිය නොහැකි අය (Declined) - " + s.declined.length + "*\n";
+      if (s.declined.length === 0) text += "_(කිසිවෙකු නැත)_\n";
+      s.declined.forEach(function(item) {
+        var r = item.declineReason ? (" -> " + item.declineReason) : "";
+        text += "• *" + item.name + "* (" + item.date + ")" + r + "\n";
+      });
+
+      text += "\n⏳ *පොරොත්තු / ප්‍රතිචාර නැති අය (Pending) - " + s.pending.length + "*\n";
+      if (s.pending.length === 0) text += "_(කිසිවෙකු නැත)_\n";
+      s.pending.forEach(function(item) {
+        var ph = item.phone ? (" (" + item.phone + ")") : "";
+        text += "• *" + item.name + "*" + ph + " - " + item.status + "\n";
+      });
+
+      text += "\n📈 *මුළු සේවා වාර සංඛ්‍යාව: " + s.total + "*\n";
+      text += "_සැකසූ දිනය: " + new Date().toLocaleString('si-LK') + "_";
+      return text;
+    }
+
+    function copyWhatsAppSummary() {
+      var text = buildWhatsAppSummaryText();
+      navigator.clipboard.writeText(text).then(function() {
+        showToast("WhatsApp සාරාංශය Clipboard එකට Copy විය!");
+      }).catch(function() {
+        // Fallback for older browsers
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        showToast("WhatsApp සාරාංශය Copy විය!");
+      });
+    }
+
+    function saveCurrentSummaryToFirestore() {
+      if (!db) {
+        showToast("Firebase නොමැත (Offline)");
+        return;
+      }
+      if (!latestSummaryData) generateFullSummaryData();
+      var s = latestSummaryData;
+      var textReport = buildWhatsAppSummaryText();
+
+      db.collection("daily_reports").add({
+        month: s.month,
+        monthLabel: s.monthLabel,
+        confirmedCount: s.confirmed.length,
+        swappedCount: s.swapped.length,
+        declinedCount: s.declined.length,
+        pendingCount: s.pending.length,
+        totalCount: s.total,
+        textReport: textReport,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function() {
+        showToast("වාර්තාව Firestore daily_reports හි සාර්ථකව සුරැකිණි!");
+        loadSavedDailyReports();
+      }).catch(function(err) {
+        console.error("Daily report save error:", err);
+        showToast("වාර්තාව සුරැකීමේදී දෝෂයක් ඇතිවිය.");
+      });
+    }
+
+    function loadSavedDailyReports() {
+      var box = document.getElementById("dailyReportsHistoryList");
+      if (!box) return;
+      if (!db) {
+        box.innerHTML = '<span style="color:#94a3b8;">Firestore සම්බන්ධ නොමැති බැවින් ඉතිහාසය ලබාගත නොහැක.</span>';
+        return;
+      }
+
+      db.collection("daily_reports")
+        .orderBy("createdAt", "desc")
+        .limit(6)
+        .get()
+        .then(function(snapshot) {
+          if (snapshot.empty) {
+            box.innerHTML = '<span style="color:#94a3b8; font-style:italic;">තවමත් කිසිදු වාර්තාවක් සුරැකී නැත.</span>';
+            return;
+          }
+          var html = '<ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:6px;">';
+          snapshot.forEach(function(doc) {
+            var d = doc.data();
+            var dt = d.createdAt ? d.createdAt.toDate().toLocaleString('si-LK') : "Recent";
+            html += '<li style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">';
+            html += '<div><strong>' + escapeHtml(d.monthLabel || d.month) + '</strong> - <span style="font-size:0.75rem; color:#64748b;">' + dt + '</span><br><span style="font-size:0.72rem; color:#16a34a;">✓ ' + d.confirmedCount + '</span> | <span style="font-size:0.72rem; color:#0284c7;">⇄ ' + d.swappedCount + '</span> | <span style="font-size:0.72rem; color:#dc2626;">✗ ' + d.declinedCount + '</span> | <span style="font-size:0.72rem; color:#d97706;">⏳ ' + d.pendingCount + '</span></div>';
+            html += '<button class="btn btn-secondary btn-sm" onclick="copySpecificReportText(' + JSON.stringify(d.textReport || '').replace(/"/g, '&quot;') + ')">Copy</button>';
+            html += '</li>';
+          });
+          html += '</ul>';
+          box.innerHTML = html;
+        })
+        .catch(function(e) {
+          box.innerHTML = '<span style="color:#dc2626; font-size:0.75rem;">වාර්තා ලබාගැනීම අසාර්ථක විය: ' + escapeHtml(e.message) + '</span>';
+        });
+    }
+
+    function copySpecificReportText(txt) {
+      if (!txt) return;
+      navigator.clipboard.writeText(txt).then(function() {
+        showToast("පසුගිය වාර්තාව Copy විය!");
+      });
+    }
+
+    /* ========================================================
+       MODAL & GENERAL HELPERS
+       ======================================================== */
+    function openModal(id) { document.getElementById(id).classList.add("active"); }
+    function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+    function openAddDayModal() {
+      document.getElementById("modalDayTitle").textContent = "නව දිනයක් එකතු කරන්න";
+      document.getElementById("editDayIndex").value = "-1";
+      document.getElementById("dayInputDate").value = "";
+      document.getElementById("dayInputTheme").value = "gold";
+      document.getElementById("dayInputType").value = "sat";
+      document.getElementById("dayInputLocation").value = currentMonth === "sep" ? "නමස්කාර මධ්‍යස්ථානය" : "වැලිගම්පිටිය හන්දිය";
+      document.getElementById("dayInputNote").value = "";
+      openModal("dayModal");
+    }
+
+    function saveDay() {
+      var idx = parseInt(document.getElementById("editDayIndex").value);
+      var date = document.getElementById("dayInputDate").value.trim();
+      var theme = document.getElementById("dayInputTheme").value;
+      var type = document.getElementById("dayInputType").value;
+      var location = document.getElementById("dayInputLocation").value.trim() || "නමස්කාර මධ්‍යස්ථානය";
+      var note = document.getElementById("dayInputNote").value.trim();
+
+      if (!date) {
+        alert("කරුණාකර දිනය ඇතුළත් කරන්න!");
+        return;
+      }
+
+      var active = getActiveData();
+
+      if (idx === -1) {
+        active.push({
+          date: date,
+          type: type,
+          theme: theme,
+          location: location,
+          note: note,
+          slots: [
+            { time: "උදේ 7.00 - 8.30", participants: ["", "", ""] },
+            { time: "උදේ 8.30 - 10.00", participants: ["", "", ""] }
+          ]
+        });
+      } else {
+        active[idx].date = date;
+        active[idx].theme = theme;
+        active[idx].type = type;
+        active[idx].location = location;
+        active[idx].note = note;
+      }
+
+      closeModal("dayModal");
+      persistActiveData("දිනය සාර්ථකව සුරැකිණි!");
+      renderCurrentMonth();
+    }
+
+    function deleteDay(index) {
+      var active = getActiveData();
+      if (confirm('ඔබට "' + active[index].date + '" දිනය ඉවත් කිරීමට අවශ්‍යද?')) {
+        active.splice(index, 1);
+        persistActiveData("දිනය ඉවත් කරන ලදී!");
+        renderCurrentMonth();
+      }
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById("toastBox");
+      document.getElementById("toastMsg").textContent = msg;
+      toast.classList.add("show");
+      setTimeout(function() {
+        toast.classList.remove("show");
+      }, 2200);
+    }
+
+    function escapeHtml(text) {
+      if (!text) return "";
+      return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function exportToExcel() {
+      var active = getActiveData();
+      var mNames = { sep: "සැප්තැම්බර්", nov: "නොවැම්බර්", oct: "ඔක්තෝම්බර්" };
+      var mName = mNames[currentMonth] || "කාලසටහන";
+
+      var tbl = "";
+      tbl += "<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns=\"http://www.w3.org/TR/REC-html40\">";
+      tbl += "<head><meta http-equiv=\"content-type\" content=\"text/plain; charset=UTF-8\"/>";
+      tbl += "<style>";
+      tbl += ".title { background: #fef08a; color: #000000; font-size: 15pt; font-weight: bold; text-align: center; border: 1.5px solid #000000; }";
+      tbl += ".gold-hdr { background: #fde047; color: #000000; font-weight: bold; border: 1.5px solid #000000; }";
+      tbl += ".green-hdr { background: #86efac; color: #000000; font-weight: bold; border: 1.5px solid #000000; }";
+      tbl += ".coral-hdr { background: #fdba74; color: #000000; font-weight: bold; border: 1.5px solid #000000; }";
+      tbl += ".violet-hdr { background: #c4b5fd; color: #000000; font-weight: bold; border: 1.5px solid #000000; }";
+      tbl += ".col-th { background: #f1f5f9; font-weight: bold; text-align: center; border: 1px solid #000000; }";
+      tbl += ".td-cell { text-align: center; border: 1px solid #000000; }";
+      tbl += ".time-cell { background: #fef9c3; font-weight: bold; text-align: center; border: 1px solid #000000; }";
+      tbl += "</style></head>";
+      tbl += "<body><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\">";
+      tbl += "<tr><td colspan=\"4\" class=\"title\">පොදු සේවය - බටගම සභාව (" + mName + " 2026)</td></tr>";
+      tbl += "<tr><td colspan=\"4\"></td></tr>";
+
+      active.forEach(function(day) {
+        var cls = (day.theme || 'gold') + "-hdr";
+        tbl += "<tr>";
+        tbl += "<td colspan=\"2\" class=\"" + cls + "\">දිනය : " + escapeHtml(day.date) + "</td>";
+        tbl += "<td colspan=\"2\" class=\"" + cls + "\" style=\"text-align: right;\">ස්ථානය : " + escapeHtml(day.location) + "</td>";
+        tbl += "</tr>";
+        tbl += "<tr><th class=\"col-th\">වේලාව</th><th colspan=\"3\" class=\"col-th\">සහභාගිවන්නන්</th></tr>";
+
+        day.slots.forEach(function(slot, sIdx) {
+          tbl += "<tr>";
+          tbl += "<td class=\"time-cell\">" + escapeHtml(slot.time) + "</td>";
+          for (var p = 0; p < 3; p++) {
+            var pn = slot.participants[p] || "";
+            var b = getBookingForSlot(day, slot, p, pn);
+            var ph = getPhoneForPerson(pn, b);
+            var st = (b && b.status) ? (" [" + b.status + "]") : "";
+            var cellText = pn ? (escapeHtml(pn) + (ph ? " (" + ph + ")" : "") + st) : "-";
+            tbl += "<td class=\"td-cell\">" + cellText + "</td>";
+          }
+          tbl += "</tr>";
+        });
+
+        tbl += "<tr><td colspan=\"4\"></td></tr>";
+      });
+
+      tbl += "<" + "/table><" + "/body><" + "/html>";
+
+      var blob = new Blob(["\uFEFF" + tbl], { type: "application/vnd.ms-excel;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "පොදු_සේවය_බටගම_" + currentMonth + ".xls";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Excel ගොනුව සාර්ථකව බාගත විය!");
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      initData();
+    });
+  </script>
+</body>
+</html>
