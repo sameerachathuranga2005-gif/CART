@@ -13,6 +13,7 @@
   <!-- Firebase SDK (Compat mode - 100% static hosting / Vercel compatible) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
 
   <style>
     :root {
@@ -1272,14 +1273,22 @@
     };
 
     var db = null;
+    var analytics = null;
     var firebaseConnected = false;
     var liveBookings = {};  // Map of bookingId/key -> booking record
     var liveContacts = {};  // Map of normalized name -> phone
 
     try {
       if (typeof firebase !== "undefined") {
-        firebase.initializeApp(firebaseConfig);
+        var app = firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
+        try {
+          if (typeof firebase.analytics === "function") {
+            analytics = firebase.analytics();
+          }
+        } catch (aErr) {
+          console.log("Analytics note:", aErr.message);
+        }
         updateFirebaseStatus("live", "Firestore Live");
         setupFirestoreListeners();
       } else {

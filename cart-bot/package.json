@@ -1,0 +1,31 @@
+{
+  "name": "cart-bot",
+  "version": "1.0.0",
+  "description": "24/7 WhatsApp Attendance & Reminder Bot for Batagama Public Service Roster with Firestore Sync",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node bot.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.12",
+    "@hapi/boom": "^10.0.1",
+    "firebase-admin": "^12.0.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "whatsapp-bot",
+    "baileys",
+    "firebase-firestore",
+    "roster-reminder",
+    "alwaysdata"
+  ],
+  "author": "Batagama Public Service Team",
+  "license": "ISC"
+}
+
