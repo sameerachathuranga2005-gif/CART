@@ -68,21 +68,39 @@ def generate_sheet_xml(days_data, title_text):
         current_row += 1
 
         # Slot rows
-        for s_idx, slot in enumerate(day["slots"]):
-            slot_time = slot["time"]
-            persons = slot["participants"]
-            row_style = 12 if (s_idx % 2 == 0) else 13
-            slot_esc = escape(slot_time)
-            rows_xml.append(f'<row r="{current_row}" ht="25" customHeight="1">')
-            rows_xml.append(f'<c r="B{current_row}" s="14" t="inlineStr"><is><t>{slot_esc}</t></is></c>')
-            p1 = escape(persons[0] if len(persons) > 0 else "")
-            p2 = escape(persons[1] if len(persons) > 1 else "")
-            p3 = escape(persons[2] if len(persons) > 2 else "")
-            rows_xml.append(f'<c r="C{current_row}" s="{row_style}" t="inlineStr"><is><t>{p1}</t></is></c>')
-            rows_xml.append(f'<c r="D{current_row}" s="{row_style}" t="inlineStr"><is><t>{p2}</t></is></c>')
-            rows_xml.append(f'<c r="E{current_row}" s="{row_style}" t="inlineStr"><is><t>{p3}</t></is></c>')
-            rows_xml.append('</row>')
-            current_row += 1
+        if day.get("note"):
+            note_esc = escape(day["note"])
+            start_note_row = current_row
+            for s_idx, slot in enumerate(day["slots"]):
+                slot_time = slot["time"]
+                slot_esc = escape(slot_time)
+                rows_xml.append(f'<row r="{current_row}" ht="25" customHeight="1">')
+                rows_xml.append(f'<c r="B{current_row}" s="14" t="inlineStr"><is><t>{slot_esc}</t></is></c>')
+                if s_idx == 0:
+                    rows_xml.append(f'<c r="C{current_row}" s="1" t="inlineStr"><is><t>{note_esc}</t></is></c>')
+                else:
+                    rows_xml.append(f'<c r="C{current_row}" s="1" t="inlineStr"/>')
+                rows_xml.append(f'<c r="D{current_row}" s="1" t="inlineStr"/>')
+                rows_xml.append(f'<c r="E{current_row}" s="1" t="inlineStr"/>')
+                rows_xml.append('</row>')
+                current_row += 1
+            merges.append(f'C{start_note_row}:E{current_row - 1}')
+        else:
+            for s_idx, slot in enumerate(day["slots"]):
+                slot_time = slot["time"]
+                persons = slot["participants"]
+                row_style = 12 if (s_idx % 2 == 0) else 13
+                slot_esc = escape(slot_time)
+                rows_xml.append(f'<row r="{current_row}" ht="25" customHeight="1">')
+                rows_xml.append(f'<c r="B{current_row}" s="14" t="inlineStr"><is><t>{slot_esc}</t></is></c>')
+                p1 = escape(persons[0] if len(persons) > 0 else "")
+                p2 = escape(persons[1] if len(persons) > 1 else "")
+                p3 = escape(persons[2] if len(persons) > 2 else "")
+                rows_xml.append(f'<c r="C{current_row}" s="{row_style}" t="inlineStr"><is><t>{p1}</t></is></c>')
+                rows_xml.append(f'<c r="D{current_row}" s="{row_style}" t="inlineStr"><is><t>{p2}</t></is></c>')
+                rows_xml.append(f'<c r="E{current_row}" s="{row_style}" t="inlineStr"><is><t>{p3}</t></is></c>')
+                rows_xml.append('</row>')
+                current_row += 1
 
         # Spacing row
         current_row += 1
@@ -334,16 +352,27 @@ def create_roster_xlsx(filename):
         "location": "වැලිගම්පිටිය හන්දිය",
         "slots": [
           {"time": "උදේ 07.30 - 09.00", "participants": ["රජිත", "ප්‍රියංකා", "රීටා"]},
-          {"time": "උදේ 09.00 - 10.30", "participants": ["තරංග පෙරේරා", "නිරංජලා", "ෆාතිමා"]}
+          {"time": "උදේ 09.00 - 10.30", "participants": ["තරංග පෙරේරා", "නිරංජලා", "ෆැටීමා"]}
+        ]
+      },
+      {
+        "date": "නොවැම්බර් 07 වන සෙනසුරාදා 2026",
+        "theme": "green",
+        "location": "වැලිගම්පිටිය හන්දිය",
+        "note": "WHQ",
+        "slots": [
+          {"time": "උදේ 07.00 - 08.30", "participants": ["WHQ", "", ""]},
+          {"time": "උදේ 08.30 - 10.00", "participants": ["WHQ", "", ""]},
+          {"time": "උදේ 10.00 - 11.30", "participants": ["WHQ", "", ""]}
         ]
       },
       {
         "date": "නොවැම්බර් 08 වන ඉරිදා 2026",
-        "theme": "green",
+        "theme": "gold",
         "location": "වැලිගම්පිටිය හන්දිය",
         "slots": [
-          {"time": "උදේ 07.30 - 09.00", "participants": ["ශාන්ත", "වරුනි", "මිශායෙල්"]},
-          {"time": "උදේ 09.00 - 10.30", "participants": ["සමින්ද", "සංජීවනී", "තරුෂ"]}
+          {"time": "උදේ 07.30 - 09.00", "participants": ["ශාන්ත", "වරුණි", "මිශායෙල්"]},
+          {"time": "උදේ 09.00 - 10.30", "participants": ["සමින්ද", "සංජීවනී", "තරංග"]}
         ]
       },
       {
@@ -351,29 +380,56 @@ def create_roster_xlsx(filename):
         "theme": "green",
         "location": "වැලිගම්පිටිය හන්දිය",
         "slots": [
-          {"time": "උදේ 07.00 - 08.30", "participants": ["රන්දික", "දිලානි", "පද්මිනි"]},
-          {"time": "උදේ 08.30 - 10.00", "participants": ["තරංග කුමාර", "කුමාරා", "තෙහාන්"]},
+          {"time": "උදේ 07.00 - 08.30", "participants": ["රන්දික", "දිලානි", "පද්මිනී"]},
+          {"time": "උදේ 08.30 - 10.00", "participants": ["තරංග කුමාර", "ඉමාරා", "තෙහාන්"]},
           {"time": "උදේ 10.00 - 11.30", "participants": ["ආශා", "මර්ල්", "භාග්‍යා"]}
         ]
       },
       {
-        "date": "නොවැම්බර් 21 වන සෙනසුරාදා 2026",
-        "theme": "coral",
+        "date": "නොවැම්බර් 15 වන ඉරිදා 2026",
+        "theme": "gold",
         "location": "වැලිගම්පිටිය හන්දිය",
         "slots": [
-          {"time": "උදේ 07.00 - 08.30", "participants": ["සුරංග", "ලක්මාලි", "මන්දාකිනි"]},
-          {"time": "උදේ 08.30 - 10.00", "participants": ["විතාල්", "කල්පනි", "ශ්‍රියානි බොතේජු"]},
-          {"time": "උදේ 10.00 - 11.30", "participants": ["දිනේශ්", "පවිත්‍රා", "සමීර"]}
+          {"time": "උදේ 07.30 - 09.00", "participants": ["දුලාජ්", "ශෙරින්", "හශිනි"]},
+          {"time": "උදේ 09.00 - 10.30", "participants": ["ඉෂාකා", "ස්නේහා", "ශයිනි"]}
+        ]
+      },
+      {
+        "date": "නොවැම්බර් 21 වන සෙනසුරාදා 2026",
+        "theme": "green",
+        "location": "වැලිගම්පිටිය හන්දිය",
+        "slots": [
+          {"time": "උදේ 07.00 - 08.30", "participants": ["සුරංග", "ලක්මාලි", "මන්දාකිණි"]},
+          {"time": "උදේ 08.30 - 10.00", "participants": ["විතාල්", "කල්පනී", "ශ්‍රියානි බොතේජු"]},
+          {"time": "උදේ 10.00 - 11.30", "participants": ["දිනේෂ්", "පවිත්‍රා", "සමීර"]}
+        ]
+      },
+      {
+        "date": "නොවැම්බර් 22 වන ඉරිදා 2026",
+        "theme": "gold",
+        "location": "වැලිගම්පිටිය හන්දිය",
+        "slots": [
+          {"time": "උදේ 07.30 - 09.00", "participants": ["බර්නාඩ්", "ඉරෝශනි", "මනුශ"]},
+          {"time": "උදේ 09.00 - 10.30", "participants": ["ප්‍රභාත්", "නිශානි", "සදුනි"]}
         ]
       },
       {
         "date": "නොවැම්බර් 28 වන සෙනසුරාදා 2026",
-        "theme": "violet",
+        "theme": "green",
         "location": "වැලිගම්පිටිය හන්දිය",
         "slots": [
           {"time": "උදේ 07.00 - 08.30", "participants": ["සිදත්", "නිලන්ති", "ලලිතා"]},
           {"time": "උදේ 08.30 - 10.00", "participants": ["ශෙහාන්", "දුලානි", "තරුන්"]},
-          {"time": "උදේ 10.00 - 11.30", "participants": ["ප්‍රවීන්", "රෝශිත්", "කුමුදුනි"]}
+          {"time": "උදේ 10.00 - 11.30", "participants": ["ප්‍රවීන්", "රොශිත්", "කුමුදුනි"]}
+        ]
+      },
+      {
+        "date": "නොවැම්බර් 29 වන ඉරිදා 2026",
+        "theme": "gold",
+        "location": "වැලිගම්පිටිය හන්දිය",
+        "slots": [
+          {"time": "උදේ 07.30 - 09.00", "participants": ["රොශේන්", "සදමාලා", "මාලනි"]},
+          {"time": "උදේ 09.00 - 10.30", "participants": ["ශ්‍රේෂන්", "ලක්ෂ්මි", "කවීෂා"]}
         ]
       }
     ]

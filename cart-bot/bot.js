@@ -136,10 +136,26 @@ function extractPhoneNumber(jid) {
 }
 
 /**
+ * Normalizes any phone number format (0771234567, +94771234567, 94771234567, or with spaces)
+ * into WhatsApp JID format (947XXXXXXXX@s.whatsapp.net)
+ */
+function getRecipientJid(phone) {
+  if (!phone) return null;
+  let cleanPhone = String(phone).replace(/\D/g, '').replace(/^0/, '94');
+  if (cleanPhone.length === 9) {
+    cleanPhone = '94' + cleanPhone;
+  }
+  if (!cleanPhone.startsWith('94') || cleanPhone.length !== 11) {
+    return null;
+  }
+  return `${cleanPhone}@s.whatsapp.net`;
+}
+
+/**
  * Generates phone variants to match numbers with or without leading 0 or country code 94
  */
 function normalizePhoneVariants(phone) {
-  const digits = String(phone).replace(/\D/g, '');
+  const digits = String(phone).replace(/\D/g, '').replace(/^0/, '94');
   const variants = new Set([digits]);
   if (digits.startsWith('94') && digits.length === 11) {
     variants.add('0' + digits.slice(2));
@@ -283,6 +299,9 @@ async function startBot() {
       console.log('🚀 WHATSAPP BOT CONNECTED SUCCESSFULLY & LIVE 24/7!');
       console.log(`📱 Bot JID: ${sock.user?.id || 'Connected'}`);
       console.log('======================================================\n');
+
+      // Start Real-time Firestore Listener on bookings collection
+      setupFirestoreRealtimeListener();
 
       // Start cron jobs once connected
       if (!cronJobsStarted) {
@@ -480,6 +499,85 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
 }
 
 /* ==========================================================================
+   REAL-TIME FIRESTORE LISTENER (INSTANT REMINDERS ON ROSTER UPDATE)
+   ========================================================================== */
+let realtimeListenerUnsub = null;
+let isInitialSnap = true;
+
+function setupFirestoreRealtimeListener() {
+  if (!db || !sock) return;
+  if (realtimeListenerUnsub) {
+    try { realtimeListenerUnsub(); } catch(e) {}
+    realtimeListenerUnsub = null;
+  }
+
+  console.log('📡 Starting Firestore Real-time Listener on `bookings` collection...');
+
+  realtimeListenerUnsub = db.collection('bookings').onSnapshot(async (snapshot) => {
+    // Prevent blast-sending to existing database records on bot cold boot
+    if (isInitialSnap) {
+      isInitialSnap = false;
+      console.log(`📋 [Firestore Real-time Listener] Initial sync complete. Monitoring ${snapshot.size} bookings for live updates.`);
+      return;
+    }
+
+    for (const change of snapshot.docChanges()) {
+      if (change.type === 'added' || change.type === 'modified') {
+        const booking = change.doc.data();
+        const docId = change.doc.id;
+
+        // Condition for sending instant reminder:
+        // 1. Participant name and phone exist
+        // 2. Status is "Waiting"
+        // 3. Reminder has not already been sent (!booking.lastSentAt)
+        if (booking.name && booking.phone && booking.status === 'Waiting' && !booking.lastSentAt) {
+          const recipientJid = getRecipientJid(booking.phone);
+          if (!recipientJid) {
+            console.warn(`⚠️ [Skip Reminder] Invalid phone number for ${booking.name}: "${booking.phone}"`);
+            continue;
+          }
+
+          console.log(`\n⚡ [Live Roster Trigger] New or updated participant detected: ${booking.name} (+${booking.phone})`);
+          console.log(`📤 Sending personalized WhatsApp reminder immediately to ${recipientJid}...`);
+
+          const displayDate = booking.displayDate || booking.eventDate || 'නියමිත දිනය';
+          const displayTime = booking.eventTime || 'නියමිත වේලාව';
+          const displayLoc = booking.location || 'වැලිගම්පිටිය හන්දිය';
+
+          const reminderText = `ආයුබෝවන් ${booking.name}! 👋\n` +
+            `පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n` +
+            `📅 දිනය: *${displayDate}*\n` +
+            `⏰ වේලාව: *${displayTime}*\n` +
+            `📍 ස්ථානය: *${displayLoc}*\n\n` +
+            `ඔබ මේ සඳහා සහභාගි වන්නේද?\n` +
+            `• පැමිණෙන්නේ නම්: *හරි* (හෝ *yes* / *ok*)\n` +
+            `• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n` +
+            `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
+            `ලෙස කරුණාකර දන්වන්න.`;
+
+          try {
+            await sock.sendMessage(recipientJid, { text: reminderText });
+            console.log(`✅ [Sent] Personalized reminder delivered to ${booking.name} (${recipientJid})`);
+
+            // Mark Sent_1 in Firestore
+            await db.collection('bookings').doc(docId).update({
+              status: 'Sent_1',
+              lastSentAt: FieldValue.serverTimestamp(),
+              retryCount: 0,
+              updatedAt: FieldValue.serverTimestamp()
+            });
+          } catch (sendErr) {
+            console.error(`❌ Failed to send reminder to ${recipientJid}:`, sendErr.message);
+          }
+        }
+      }
+    }
+  }, (err) => {
+    console.error('❌ Firestore real-time listener error:', err.message);
+  });
+}
+
+/* ==========================================================================
    AUTOMATED CRON JOBS
    ========================================================================== */
 function setupCronJobs() {
@@ -509,7 +607,8 @@ function setupCronJobs() {
         // Only active for 0 to 2 days before service
         if (daysUntil < 0 || daysUntil > 2) continue;
 
-        const recipientJid = `${b.phone.replace(/\D/g, '')}@s.whatsapp.net`;
+        const recipientJid = getRecipientJid(b.phone);
+        if (!recipientJid) continue;
         let lastSentMs = 0;
         if (b.lastSentAt) {
           if (typeof b.lastSentAt.toDate === 'function') {
