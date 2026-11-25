@@ -11,6 +11,8 @@ cart-bot/node_modules/
 # Baileys auth credentials
 cart-bot/auth_info_baileys/
 auth_info_baileys/
+bot.pid
+cart-bot/bot.pid
 
 # Logs & temp files
 *.log

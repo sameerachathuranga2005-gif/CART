@@ -28,37 +28,125 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
    ========================================================================== */
 const AUTH_DIR = path.resolve(__dirname, 'auth_info_baileys');
 const SERVICE_ACCOUNT_PATH = path.resolve(__dirname, 'serviceAccountKey.json');
+const PID_LOCK_PATH = path.resolve(__dirname, 'bot.pid');
 
 // Pairing phone and admin phone number (Sri Lanka format: 947XXXXXXXX)
 const PAIRING_PHONE = (process.env.PAIRING_PHONE || '94701206001').replace(/\D/g, '');
 const ADMIN_PHONE = (process.env.ADMIN_PHONE || '94701206001').replace(/\D/g, '');
 const HTTP_PORT = parseInt(process.env.PORT || '8100', 10);
 const HTTP_HOST = process.env.IP || '0.0.0.0';
+const COLOMBO_TZ = 'Asia/Colombo';
 
 let db = null;
 let sock = null;
 let isReconnecting = false;
+let reconnectTimer = null;
 let cronJobsStarted = false;
+let sweeperInterval = null;
 let membersCache = [];
 let contactsCache = {};
 const sendingDocIds = new Set();
+const sentMessagesStore = new Map();
 
 const botState = {
+  pid: process.pid,
   connectionStatus: 'DISCONNECTED', // 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'
   botJid: null,
   pairingCode: null,
   lastPairingError: null,
   lastDisconnectCode: null,
   lastDisconnectReason: null,
+  conflictBackoffUntil: null,
   firestoreConnected: false,
   bookingsMonitored: 0,
   membersCached: 0,
   contactsCached: 0,
   lastSentAt: null,
   lastSentTo: null,
+  tomorrowDateStr: null,
+  tomorrowBookingsCount: 0,
+  lastDayBeforeBatchDate: null,
+  lastDayBeforeBatchAt: null,
+  lastDayBeforeSentCount: 0,
+  lastSweeperAt: null,
   startedAt: new Date().toISOString(),
   recentLogs: []
 };
+
+function acquirePidLock() {
+  try {
+    if (fs.existsSync(PID_LOCK_PATH)) {
+      const oldPid = parseInt(fs.readFileSync(PID_LOCK_PATH, 'utf8').trim(), 10);
+      if (oldPid && oldPid !== process.pid) {
+        try {
+          process.kill(oldPid, 0);
+          console.warn(`⚠️ Found active PID ${oldPid} in bot.pid. Sending SIGTERM to avoid conflict...`);
+          try { process.kill(oldPid, 'SIGTERM'); } catch (_) {}
+        } catch (_) {
+          // Stale PID file — safe to overwrite
+        }
+      }
+    }
+    fs.writeFileSync(PID_LOCK_PATH, String(process.pid), 'utf8');
+  } catch (err) {
+    console.warn('⚠️ PID lock warning:', err.message);
+  }
+
+  const cleanupPid = () => {
+    try {
+      if (fs.existsSync(PID_LOCK_PATH)) {
+        const cur = parseInt(fs.readFileSync(PID_LOCK_PATH, 'utf8').trim(), 10);
+        if (cur === process.pid) fs.unlinkSync(PID_LOCK_PATH);
+      }
+    } catch (_) {}
+  };
+  process.once('exit', cleanupPid);
+  process.once('SIGINT', () => { cleanupPid(); process.exit(0); });
+  process.once('SIGTERM', () => { cleanupPid(); process.exit(0); });
+}
+
+function getColomboNowParts(offsetDays = 0) {
+  const now = new Date();
+  const slOffsetMs = 5.5 * 60 * 60 * 1000;
+  const slNow = new Date(now.getTime() + slOffsetMs + (offsetDays * 24 * 60 * 60 * 1000));
+  const year = slNow.getUTCFullYear();
+  const month = String(slNow.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(slNow.getUTCDate()).padStart(2, '0');
+  const hour = slNow.getUTCHours();
+  const minute = slNow.getUTCMinutes();
+  const second = slNow.getUTCSeconds();
+  return {
+    year,
+    month: slNow.getUTCMonth() + 1,
+    day: slNow.getUTCDate(),
+    hour,
+    minute,
+    second,
+    dateStr: `${year}-${month}-${day}`,
+    timeStr: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
+  };
+}
+
+function formatDateToISO(dateObj) {
+  if (!dateObj || isNaN(dateObj.getTime())) return '';
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function sendWhatsAppMessage(jid, content) {
+  if (!sock) throw new Error('WhatsApp socket not initialized');
+  const sent = await sock.sendMessage(jid, content);
+  if (sent && sent.key && sent.key.id && sent.message) {
+    sentMessagesStore.set(sent.key.id, sent.message);
+    if (sentMessagesStore.size > 500) {
+      const oldestKey = sentMessagesStore.keys().next().value;
+      sentMessagesStore.delete(oldestKey);
+    }
+  }
+  return sent;
+}
 
 function pushLog(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
@@ -85,8 +173,16 @@ function startHttpKeepAliveServer() {
       (req.headers.accept && req.headers.accept.includes('application/json'));
 
     if (reqPath === '/status' || reqPath === '/bot/status') {
+      const slNow = getColomboNowParts(0);
+      const slTomorrow = getColomboNowParts(1);
+      const batchRanToday = botState.lastDayBeforeBatchDate === slNow.dateStr;
+      const dayBeforeStatusText = batchRanToday
+        ? `✅ Ran today (${slNow.dateStr}) at ${botState.lastDayBeforeBatchAt} — Sent: ${botState.lastDayBeforeSentCount}`
+        : `⏳ Waiting for 08:00–08:15 Asia/Colombo`;
+
       const payload = {
         service: 'Batagama CART WhatsApp Bot',
+        pid: botState.pid,
         connectionStatus: botState.connectionStatus,
         botJid: botState.botJid,
         pairingPhone: PAIRING_PHONE,
@@ -94,10 +190,20 @@ function startHttpKeepAliveServer() {
         lastPairingError: botState.lastPairingError,
         lastDisconnectCode: botState.lastDisconnectCode,
         lastDisconnectReason: botState.lastDisconnectReason,
+        conflictBackoffUntil: botState.conflictBackoffUntil,
         firestoreConnected: !!db,
         bookingsMonitored: botState.bookingsMonitored,
         membersCached: botState.membersCached,
         contactsCached: botState.contactsCached,
+        sentMessagesStoreSize: sentMessagesStore.size,
+        sriLankaTime: `${slNow.dateStr} ${slNow.timeStr} (Asia/Colombo)`,
+        tomorrowDate: botState.tomorrowDateStr || slTomorrow.dateStr,
+        tomorrowBookingsCount: botState.tomorrowBookingsCount,
+        dayBefore8AmReminderStatus: dayBeforeStatusText,
+        lastDayBeforeBatchDate: botState.lastDayBeforeBatchDate,
+        lastDayBeforeBatchAt: botState.lastDayBeforeBatchAt,
+        lastDayBeforeSentCount: botState.lastDayBeforeSentCount,
+        lastSweeperAt: botState.lastSweeperAt,
         lastSentAt: botState.lastSentAt,
         lastSentTo: botState.lastSentTo,
         startedAt: botState.startedAt,
@@ -129,11 +235,11 @@ function startHttpKeepAliveServer() {
   <title>CART WhatsApp Bot Status</title>
   <style>
     body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;}
-    .card{max-width:760px;margin:0 auto;background:#fff;border:1.5px solid #0f172a;border-radius:10px;padding:22px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}
+    .card{max-width:780px;margin:0 auto;background:#fff;border:1.5px solid #0f172a;border-radius:10px;padding:22px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}
     .badge{display:inline-block;padding:6px 14px;border-radius:20px;color:#fff;font-weight:800;font-size:0.9rem;background:${badgeColor};}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0;}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin:16px 0;}
     .stat{background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:0.86rem;}
-    .stat b{display:block;font-size:0.75rem;color:#64748b;text-transform:uppercase;margin-bottom:4px;}
+    .stat b{display:block;font-size:0.74rem;color:#64748b;text-transform:uppercase;margin-bottom:4px;}
     pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:0.78rem;max-height:280px;}
   </style>
 </head>
@@ -145,12 +251,14 @@ function startHttpKeepAliveServer() {
     </div>
     ${pairingBlock}
     <div class="grid">
-      <div class="stat"><b>Bot JID</b>${escapeHtml(botState.botJid || 'Not connected')}</div>
+      <div class="stat"><b>Bot JID / PID</b>${escapeHtml(botState.botJid || 'Not connected')} (PID: ${botState.pid})</div>
       <div class="stat"><b>Firestore</b>${db ? '🟢 Connected' : '🔴 Offline'}</div>
-      <div class="stat"><b>Bookings Monitored</b>${botState.bookingsMonitored}</div>
-      <div class="stat"><b>Members / Contacts</b>${botState.membersCached} / ${botState.contactsCached}</div>
+      <div class="stat"><b>Sri Lanka Time</b>${escapeHtml(slNow.dateStr + ' ' + slNow.timeStr)}</div>
+      <div class="stat"><b>Tomorrow (${escapeHtml(botState.tomorrowDateStr || slTomorrow.dateStr)})</b>${botState.tomorrowBookingsCount} scheduled</div>
+      <div class="stat"><b>8:00 AM Batch Status</b>${escapeHtml(dayBeforeStatusText)}</div>
+      <div class="stat"><b>Bookings / Members</b>${botState.bookingsMonitored} / ${botState.membersCached} (Store: ${sentMessagesStore.size})</div>
+      <div class="stat"><b>45s Sweeper</b>${escapeHtml(botState.lastSweeperAt || 'Initializing...')}</div>
       <div class="stat"><b>Last Reminder Sent</b>${escapeHtml(botState.lastSentTo ? `${botState.lastSentTo} (${botState.lastSentAt})` : 'None yet')}</div>
-      <div class="stat"><b>Started At</b>${escapeHtml(botState.startedAt)}</div>
     </div>
     ${botState.lastPairingError ? `<p style="color:#dc2626;font-size:0.85rem;"><b>Last Pairing Error:</b> ${escapeHtml(botState.lastPairingError)}</p>` : ''}
     ${botState.lastDisconnectReason ? `<p style="color:#b45309;font-size:0.85rem;"><b>Last Disconnect (${escapeHtml(botState.lastDisconnectCode)}):</b> ${escapeHtml(botState.lastDisconnectReason)}</p>` : ''}
@@ -261,13 +369,14 @@ function parseEventDate(dateStr) {
 }
 
 /**
- * Calculates days remaining until target date (0 = today, 1 = tomorrow, 2 = day after)
+ * Calculates days remaining until target date using Sri Lanka date (Asia/Colombo)
+ * (0 = today, 1 = tomorrow, 2 = day after)
  */
 function getDaysUntil(targetDate) {
   if (!targetDate) return 999;
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
+  const slToday = getColomboNowParts(0);
+  const startOfToday = Date.UTC(slToday.year, slToday.month - 1, slToday.day);
+  const startOfTarget = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
   return Math.round((startOfTarget - startOfToday) / (1000 * 60 * 60 * 24));
 }
 
@@ -424,6 +533,16 @@ async function startBot() {
   }
   setupMembersAndContactsListeners();
 
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (sock) {
+    try { sock.ev.removeAllListeners(); } catch (_) {}
+    try { sock.end(undefined); } catch (_) {}
+    sock = null;
+  }
+
   botState.connectionStatus = 'CONNECTING';
   pushLog('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING...');
   console.log('\n======================================================');
@@ -444,7 +563,8 @@ async function startBot() {
     browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
-    syncFullHistory: false
+    syncFullHistory: false,
+    getMessage: async (key) => (key && key.id ? sentMessagesStore.get(key.id) : undefined)
   });
 
   // Pairing code request if not already authenticated
@@ -477,7 +597,7 @@ async function startBot() {
   // Save auth credentials whenever updated
   sock.ev.on('creds.update', saveCreds);
 
-  // Connection status & auto-reconnect handling
+  // Connection status & auto-reconnect + conflict protection handling
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
@@ -486,12 +606,18 @@ async function startBot() {
       const statusCode = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output?.statusCode
         : lastDisconnect?.error?.output?.statusCode;
+      const errMsg = lastDisconnect?.error?.message || `Status ${statusCode || 'closed'}`;
+      const isConflict = statusCode === DisconnectReason.connectionReplaced ||
+        statusCode === 440 ||
+        /conflict|replaced/i.test(errMsg);
 
       botState.lastDisconnectCode = statusCode || 'unknown';
-      botState.lastDisconnectReason = lastDisconnect?.error?.message || `Status ${statusCode || 'closed'}`;
+      botState.lastDisconnectReason = isConflict
+        ? `Session conflict (${statusCode || 440}) - backing off 30s`
+        : errMsg;
 
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      pushLog(`⚠️ Connection closed. Status code: ${statusCode}. Reconnecting: ${shouldReconnect}`);
+      pushLog(`⚠️ Connection closed. Status code: ${statusCode}. Conflict: ${isConflict}. Reconnecting: ${shouldReconnect}`);
 
       if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
         pushLog('🔒 Device logged out. Clearing auth directory to allow new pairing...');
@@ -501,16 +627,19 @@ async function startBot() {
         } catch (rmErr) {
           console.error('Error clearing auth dir:', rmErr.message);
         }
-        setTimeout(() => startBot(), 3000);
-      } else if (shouldReconnect) {
-        if (!isReconnecting) {
-          isReconnecting = true;
-          console.log('🔄 Reconnecting in 5 seconds...');
-          setTimeout(() => {
-            isReconnecting = false;
-            startBot();
-          }, 5000);
+        reconnectTimer = setTimeout(() => startBot(), 3000);
+      } else if (shouldReconnect && !isReconnecting) {
+        const delayMs = isConflict ? 30000 : 5000;
+        isReconnecting = true;
+        if (isConflict) {
+          botState.conflictBackoffUntil = new Date(Date.now() + delayMs).toISOString();
         }
+        console.log(`🔄 Reconnecting in ${delayMs / 1000} seconds...`);
+        reconnectTimer = setTimeout(() => {
+          isReconnecting = false;
+          botState.conflictBackoffUntil = null;
+          startBot();
+        }, delayMs);
       }
     } else if (connection === 'open') {
       botState.connectionStatus = 'CONNECTED';
@@ -518,6 +647,7 @@ async function startBot() {
       botState.pairingCode = null;
       botState.lastPairingError = null;
       botState.lastDisconnectReason = null;
+      botState.conflictBackoffUntil = null;
 
       pushLog(`🚀 WHATSAPP BOT CONNECTED SUCCESSFULLY (${botState.botJid})`);
       console.log('\n======================================================');
@@ -527,6 +657,9 @@ async function startBot() {
 
       // Start Real-time Firestore Listener on bookings collection
       setupFirestoreRealtimeListener();
+
+      // Start 45-second background sweeper for Waiting bookings
+      startWaitingBookingsSweeper();
 
       // Start cron jobs once connected
       if (!cronJobsStarted) {
@@ -581,18 +714,18 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
   if (senderPhone === ADMIN_PHONE) {
     if (text === 'summary' || text === 'වාර්තාව' || text === 'report') {
       console.log('👑 Admin requested attendance summary.');
-      await sock.sendMessage(remoteJid, { text: '⏳ වාර්තාව සකස් කරමින් පවතී...' });
+      await sendWhatsAppMessage(remoteJid, { text: '⏳ වාර්තාව සකස් කරමින් පවතී...' });
       await sendAndSaveDailySummary(remoteJid);
       return;
     } else if (text === 'ping' || text === 'test') {
-      await sock.sendMessage(remoteJid, { text: '🏓 Pong! Bot is running 24/7 on alwaysdata.\n🟢 Firestore Live: ' + (db ? 'Connected' : 'Offline') });
+      await sendWhatsAppMessage(remoteJid, { text: '🏓 Pong! Bot is running 24/7 on alwaysdata.\n🟢 Firestore Live: ' + (db ? 'Connected' : 'Offline') });
       return;
     }
   }
 
   // 2. Participant Booking Lookup
   if (!db) {
-    await sock.sendMessage(remoteJid, { text: '⚠️ සේවාදායකයේ දත්ත ගබඩාව සම්බන්ධ කරමින් පවතී. කරුණාකර සුළු මොහොතකින් නැවත උත්සාහ කරන්න.' });
+    await sendWhatsAppMessage(remoteJid, { text: '⚠️ සේවාදායකයේ දත්ත ගබඩාව සම්බන්ධ කරමින් පවතී. කරුණාකර සුළු මොහොතකින් නැවත උත්සාහ කරන්න.' });
     return;
   }
 
@@ -603,7 +736,7 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
     const noBookingReply = `ආයුබෝවන්! 👋\n` +
       `ඔබගේ දුරකථන අංකය (+${senderPhone}) පොදු සේවා කාලසටහනෙහි ලියාපදිංචිව නොමැත.\n` +
       `කරුණාකර සභා භාරකරු අමතන්න.`;
-    await sock.sendMessage(remoteJid, { text: noBookingReply });
+    await sendWhatsAppMessage(remoteJid, { text: noBookingReply });
     return;
   }
 
@@ -632,7 +765,7 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
                   `⏰ වේලාව: *${eventTime}*\n` +
                   `📍 ස්ථානය: *${location}*\n\n` +
                   `ස්වාමීන්ගේ ආශීර්වාදය ඔබට ලැබේවා! 🙏`;
-    await sock.sendMessage(remoteJid, { text: reply });
+    await sendWhatsAppMessage(remoteJid, { text: reply });
     return;
   }
 
@@ -671,7 +804,7 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
       reply = `ඔබගේ නොපැමිණීම සටහන් කරගත්තා. ❌\n\n` +
               `කරුණාකර නොපැමිණීමට හේතුව *හේතුව: [ඔබගේ හේතුව]* හෝ *reason: [reason]* ලෙස එවන්න.`;
     }
-    await sock.sendMessage(remoteJid, { text: reply });
+    await sendWhatsAppMessage(remoteJid, { text: reply });
     return;
   }
 
@@ -688,7 +821,7 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
       console.log(`📝 [Reason Saved] ${personName} (+${senderPhone}): "${explicitReason}"`);
 
       const reply = `හේතුව සාර්ථකව සටහන් කරගත්තා: "${explicitReason}". ස්තූතියි ${personName}! 🙏`;
-      await sock.sendMessage(remoteJid, { text: reply });
+      await sendWhatsAppMessage(remoteJid, { text: reply });
       return;
     }
   }
@@ -707,11 +840,11 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
       console.log(`🔄 [Swapped] ${personName} (+${senderPhone}): "${swapDetails}"`);
 
       const reply = `මාරු කිරීම සාර්ථකව සටහන් කරගත්තා: "${swapDetails}". ස්තූතියි ${personName}! 🔄`;
-      await sock.sendMessage(remoteJid, { text: reply });
+      await sendWhatsAppMessage(remoteJid, { text: reply });
       return;
     } else {
       const reply = `කරුණාකර 'swap [මාරු කරගත් කෙනාගේ නම]' ලෙස එවන්න. (උදා: *swap සුදාර සමඟ*)`;
-      await sock.sendMessage(remoteJid, { text: reply });
+      await sendWhatsAppMessage(remoteJid, { text: reply });
       return;
     }
   }
@@ -723,7 +856,7 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
     `• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n` +
     `• මාරු කරන්නේ නම්: *swap [නම]*\n\n` +
     `ලෙස පිළිතුරු එවන්න.`;
-  await sock.sendMessage(remoteJid, { text: helpReply });
+  await sendWhatsAppMessage(remoteJid, { text: helpReply });
 }
 
 /* ==========================================================================
@@ -820,7 +953,7 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
       `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
       `ලෙස කරුණාකර දන්වන්න.`;
 
-    await sock.sendMessage(recipientJid, { text: reminderText });
+    await sendWhatsAppMessage(recipientJid, { text: reminderText });
     pushLog(`✅ [Sent_1] Personalized reminder delivered to ${personName} (${recipientJid})`);
 
     botState.lastSentAt = new Date().toISOString();
@@ -843,6 +976,21 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
   }
 }
 
+function updateTomorrowCountFromDocs(docs) {
+  const slTomorrow = getColomboNowParts(1);
+  botState.tomorrowDateStr = slTomorrow.dateStr;
+  let count = 0;
+  docs.forEach(doc => {
+    const b = typeof doc.data === 'function' ? doc.data() : doc;
+    if (!b || b.status === 'Declined') return;
+    const pDate = parseEventDate(b.eventDate || b.date || '');
+    if (pDate && formatDateToISO(pDate) === slTomorrow.dateStr) {
+      count++;
+    }
+  });
+  botState.tomorrowBookingsCount = count;
+}
+
 function setupFirestoreRealtimeListener() {
   if (!db || !sock) return;
   if (realtimeListenerUnsub) {
@@ -855,6 +1003,7 @@ function setupFirestoreRealtimeListener() {
 
   realtimeListenerUnsub = db.collection('bookings').onSnapshot(async (snapshot) => {
     botState.bookingsMonitored = snapshot.size;
+    updateTomorrowCountFromDocs(snapshot.docs);
 
     if (isInitialSnap) {
       isInitialSnap = false;
@@ -878,13 +1027,138 @@ function setupFirestoreRealtimeListener() {
   });
 }
 
+/**
+ * Trigger 1 Backup: 45-second background sweeper so no Waiting booking is ever missed
+ */
+function startWaitingBookingsSweeper() {
+  if (sweeperInterval) return;
+
+  const runSweep = async () => {
+    if (!sock || !db || botState.connectionStatus !== 'CONNECTED') return;
+    try {
+      botState.lastSweeperAt = new Date().toISOString();
+      const allSnap = await db.collection('bookings').get();
+      botState.bookingsMonitored = allSnap.size;
+      updateTomorrowCountFromDocs(allSnap.docs);
+
+      for (const doc of allSnap.docs) {
+        const b = doc.data();
+        if (b && b.status === 'Waiting' && !b.lastSentAt) {
+          const sent = await trySendBookingReminder(doc.id, b, true);
+          if (sent) await delay(1200);
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ 45s sweeper warning:', err.message);
+    }
+  };
+
+  sweeperInterval = setInterval(runSweep, 45000);
+  pushLog('🔄 45-second background sweeper started for Waiting bookings.');
+}
+
+/**
+ * Trigger 2: Day-Before Reminder at 8:00 AM Sri Lanka Time (Asia/Colombo)
+ * Runs between 08:00 and 08:15 Asia/Colombo and sends one reminder per tomorrow's booking
+ */
+async function runDayBefore8AmReminders(forceRun = false) {
+  if (!sock || !db || botState.connectionStatus !== 'CONNECTED') return;
+
+  const slToday = getColomboNowParts(0);
+  const slTomorrow = getColomboNowParts(1);
+  botState.tomorrowDateStr = slTomorrow.dateStr;
+
+  const in8AmWindow = slToday.hour === 8 && slToday.minute >= 0 && slToday.minute <= 15;
+  if (!forceRun && !in8AmWindow) return;
+
+  try {
+    const snapshot = await db.collection('bookings').get();
+    if (snapshot.empty) {
+      botState.tomorrowBookingsCount = 0;
+      botState.lastDayBeforeBatchDate = slToday.dateStr;
+      botState.lastDayBeforeBatchAt = new Date().toISOString();
+      return;
+    }
+
+    const tomorrowDocs = [];
+    snapshot.forEach(doc => {
+      const b = doc.data();
+      if (!b || b.status === 'Declined') return;
+      const pDate = parseEventDate(b.eventDate || b.date || '');
+      if (pDate && formatDateToISO(pDate) === slTomorrow.dateStr) {
+        tomorrowDocs.push({ id: doc.id, data: b });
+      }
+    });
+
+    botState.tomorrowBookingsCount = tomorrowDocs.length;
+
+    let sentCount = (botState.lastDayBeforeBatchDate === slToday.dateStr)
+      ? botState.lastDayBeforeSentCount
+      : 0;
+
+    for (const item of tomorrowDocs) {
+      const b = item.data;
+      const docId = item.id;
+      if (b.dayBeforeReminderSent === true) continue;
+
+      const personName = b.name || b.memberName || '';
+      const resolvedPhone = resolvePhoneForBooking(personName, b.phone);
+      const recipientJid = getRecipientJid(resolvedPhone);
+      if (!recipientJid) {
+        pushLog(`⚠️ [8AM Day-Before Skip] Missing/invalid phone for ${personName} (${docId})`);
+        continue;
+      }
+
+      const displayDate = b.displayDate || b.eventDate || b.date || slTomorrow.dateStr;
+      const displayTime = b.eventTime || b.timeSlot || b.slot || 'නියමිත වේලාව';
+      const displayLoc = b.location || 'වැලිගම්පිටිය හන්දිය';
+
+      const confirmLine = (b.status === 'Confirmed')
+        ? `✅ ඔබගේ පැමිණීම දැනටමත් තහවුරු කර ඇත. හෙට නියමිත වේලාවට සහභාගි වන්න!`
+        : `කරුණාකර තවමත් තහවුරු කර නොමැති නම් පැමිණීම තහවුරු කිරීමට *හරි* හෝ *YES* ලෙස පිළිතුරු එවන්න.\n• නොහැකි නම්: *බෑ* | මාරු කරන්නේ නම්: *swap [විස්තර]*`;
+
+      const msg = `🌅 සුබ උදෑසනක් ${personName}! 🙏\n` +
+        `⏰ *හෙට දිනයේ පොදු සේවා මතක් කිරීම (බටගම සභාව)*\n\n` +
+        `📅 දිනය: *${displayDate}*\n` +
+        `⏰ වේලාව: *${displayTime}*\n` +
+        `📍 ස්ථානය: *${displayLoc}*\n\n` +
+        `${confirmLine}`;
+
+      await sendWhatsAppMessage(recipientJid, { text: msg });
+      await db.collection('bookings').doc(docId).update({
+        phone: resolvedPhone,
+        dayBeforeReminderSent: true,
+        dayBeforeReminderSentAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+
+      sentCount++;
+      botState.lastSentAt = new Date().toISOString();
+      botState.lastSentTo = `${personName} (+${resolvedPhone}) [8AM Day-Before]`;
+      pushLog(`🌅 [8AM Day-Before] Sent reminder to ${personName} (+${resolvedPhone}) for ${slTomorrow.dateStr}`);
+      await delay(1500);
+    }
+
+    botState.lastDayBeforeBatchDate = slToday.dateStr;
+    botState.lastDayBeforeBatchAt = new Date().toISOString();
+    botState.lastDayBeforeSentCount = sentCount;
+  } catch (err) {
+    pushLog(`❌ [8AM Day-Before] Error: ${err.message}`);
+  }
+}
+
 /* ==========================================================================
-   AUTOMATED CRON JOBS
+   AUTOMATED CRON JOBS (Asia/Colombo)
    ========================================================================== */
 function setupCronJobs() {
-  console.log('⏰ Scheduling automated Cron Jobs...');
+  console.log('⏰ Scheduling automated Cron Jobs (Asia/Colombo)...');
 
-  // 1. Every 30 minutes: Check bookings and send reminders (0-2 days ahead)
+  // Trigger 2: Check every 2 minutes during 08:00-08:15 Asia/Colombo for tomorrow's bookings
+  cron.schedule('0-15/2 8 * * *', async () => {
+    await runDayBefore8AmReminders(false);
+  }, { timezone: COLOMBO_TZ });
+
+  // Also check every 30 minutes: retry unconfirmed reminders (0-2 days ahead)
   cron.schedule('*/30 * * * *', async () => {
     console.log(`\n[${new Date().toISOString()}] 🔍 Running 30-min Attendance & Reminder check...`);
     if (!sock || !db || botState.connectionStatus !== 'CONNECTED') return;
@@ -892,6 +1166,7 @@ function setupCronJobs() {
     try {
       const snapshot = await db.collection('bookings').get();
       if (snapshot.empty) return;
+      updateTomorrowCountFromDocs(snapshot.docs);
 
       const nowMs = Date.now();
       const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
@@ -938,7 +1213,7 @@ function setupCronJobs() {
                       `*${displayDate}* (${displayTime}) දින සේවා වාරය තහවුරු කර නොමැත.\n\n` +
                       `කරුණාකර ඔබ සහභාගි වන්නේද යන්න *හරි* හෝ *බෑ* ලෙස පිළිතුරක් එවන්න.`;
 
-          await sock.sendMessage(recipientJid, { text: msg });
+          await sendWhatsAppMessage(recipientJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
             phone: resolvedPhone,
             status: 'Retry_1',
@@ -956,7 +1231,7 @@ function setupCronJobs() {
                       `• සහභාගි වන්නේ නම්: *හරි*\n` +
                       `• නොහැකි නම්: *බෑ*`;
 
-          await sock.sendMessage(recipientJid, { text: msg });
+          await sendWhatsAppMessage(recipientJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
             phone: resolvedPhone,
             status: 'Retry_2',
@@ -980,16 +1255,18 @@ function setupCronJobs() {
     } catch (cronErr) {
       console.error('❌ Reminder cron error:', cronErr);
     }
-  });
+  }, { timezone: COLOMBO_TZ });
 
-  // 2. Daily at 8:00 PM (20:00): Send full attendance summary report
+  // 2. Daily at 8:00 PM (20:00 Asia/Colombo): Send full attendance summary report
   cron.schedule('0 20 * * *', async () => {
     console.log(`\n[${new Date().toISOString()}] 📊 Running Daily 8:00 PM Summary Cron...`);
     await sendAndSaveDailySummary();
-  });
+  }, { timezone: COLOMBO_TZ });
 
-  console.log('✅ Cron jobs initialized:');
-  console.log('   - 30-min Reminder Runner: */30 * * * *');
+  console.log('✅ Cron jobs initialized (Asia/Colombo):');
+  console.log('   - 45s Waiting Sweeper: every 45 seconds');
+  console.log('   - Day-Before 8:00 AM Reminder: 0-15/2 8 * * *');
+  console.log('   - 30-min Retry Runner: */30 * * * *');
   console.log('   - Daily 8:00 PM Summary: 0 20 * * *');
 }
 
@@ -1071,7 +1348,7 @@ async function sendAndSaveDailySummary(targetJid = null) {
 
     // 1. Send via WhatsApp to Admin
     const recipient = targetJid || `${ADMIN_PHONE}@s.whatsapp.net`;
-    await sock.sendMessage(recipient, { text: report });
+    await sendWhatsAppMessage(recipient, { text: report });
     console.log(`📋 Summary report sent to ${recipient}`);
 
     // 2. Save report to Firestore `daily_reports` collection
@@ -1101,6 +1378,9 @@ async function sendAndSaveDailySummary(targetJid = null) {
     console.error('❌ Failed to generate or send daily summary:', err);
   }
 }
+
+// Acquire PID lock to avoid duplicate running instances
+acquirePidLock();
 
 // Start Alwaysdata HTTP Keep-Alive Server immediately
 startHttpKeepAliveServer();

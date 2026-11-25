@@ -3285,6 +3285,8 @@
         var retryCount = isSamePerson ? (existing.retryCount || 0) : 0;
         var declineReason = isSamePerson ? (existing.declineReason || "") : "";
         var swapDetails = isSamePerson ? (existing.swapDetails || "") : "";
+        var dayBeforeReminderSent = isSamePerson ? !!existing.dayBeforeReminderSent : false;
+        var dayBeforeReminderSentAt = isSamePerson ? (existing.dayBeforeReminderSentAt || null) : null;
 
         docRef.set({
           name: personName,
@@ -3299,6 +3301,8 @@
           declineReason: declineReason,
           swapDetails: swapDetails,
           lastSentAt: lastSentAt,
+          dayBeforeReminderSent: dayBeforeReminderSent,
+          dayBeforeReminderSentAt: dayBeforeReminderSentAt,
           summarySent: false,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           createdAt: existing.createdAt || firebase.firestore.FieldValue.serverTimestamp()
@@ -3414,6 +3418,10 @@
         summarySent: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
+      if (personChanged) {
+        bookingData.dayBeforeReminderSent = false;
+        bookingData.dayBeforeReminderSentAt = null;
+      }
 
       if (db) {
         db.collection("bookings").doc(docId).set(bookingData, { merge: true }).then(function() {
