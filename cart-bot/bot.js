@@ -437,38 +437,86 @@ function normalizeSinhalaForMatch(str) {
     .replace(/\s+/g, ' ');
 }
 
+let hasRunPhoneMigration = false;
+
+async function migrateSameeraPhoneNumber() {
+  if (!db || hasRunPhoneMigration) return;
+  hasRunPhoneMigration = true;
+
+  const OLD_PHONES = new Set(['0771438120', '771438120', '+94771438120', '94771438120']);
+  const TARGET_PHONE = '94771438102';
+  let updatedCount = 0;
+
+  try {
+    for (const colName of ['members', 'bookings', 'contacts']) {
+      const snap = await db.collection(colName).get();
+      for (const doc of snap.docs) {
+        const d = doc.data() || {};
+        const rawPhone = String(d.phone || '').replace(/[\s\-()]/g, '');
+        const cleanDigits = normalizePhoneDigits(rawPhone);
+        const nameNorm = normalizeSinhalaForMatch(d.name || d.memberName || '');
+        const isOldSameeraTypo = OLD_PHONES.has(rawPhone) || OLD_PHONES.has(cleanDigits);
+        const isSameeraBotPhone = (colName === 'members' && (doc.id === 'member_31' || d.id === 31) && cleanDigits === '94701206001') ||
+          ((nameNorm === 'සමිර' || nameNorm.startsWith('සමිර ')) && cleanDigits === '94701206001');
+
+        if (isOldSameeraTypo || isSameeraBotPhone) {
+          await db.collection(colName).doc(doc.id).update({
+            phone: TARGET_PHONE,
+            updatedAt: FieldValue.serverTimestamp()
+          });
+          updatedCount++;
+          pushLog(`🔧 [Phone Migration] Updated ${colName}/${doc.id} (${d.name || 'record'}) phone -> ${TARGET_PHONE}`);
+        }
+      }
+    }
+    if (updatedCount > 0) {
+      pushLog(`✅ [Phone Migration] Completed Sameera phone update across ${updatedCount} Firestore document(s).`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Phone migration warning:', err.message);
+  }
+}
+
 function resolvePhoneForBooking(personName, directPhone) {
+  if (personName) {
+    const raw = String(personName).trim();
+    const aliased = MEMBER_NAME_ALIASES[raw] || raw;
+    const norm = normalizeSinhalaForMatch(aliased);
+
+    if (norm) {
+      // 1. Always check live `members` collection cache FIRST so Member edits apply immediately
+      let member = membersCache.find(m => normalizeSinhalaForMatch(m.name) === norm);
+      if (!member) {
+        member = membersCache.find(m => {
+          const mn = normalizeSinhalaForMatch(m.name);
+          return mn.startsWith(norm + ' ') || mn.startsWith(norm);
+        });
+      }
+      if (!member) {
+        member = membersCache.find(m => {
+          const mn = normalizeSinhalaForMatch(m.name);
+          return mn.includes(norm) || norm.includes(mn);
+        });
+      }
+      if (member && member.phone) {
+        const cleanMemberPhone = normalizePhoneDigits(member.phone);
+        if (cleanMemberPhone && cleanMemberPhone.length >= 10 && cleanMemberPhone.length <= 15) {
+          return cleanMemberPhone;
+        }
+      }
+
+      // 2. Fall back to contacts cache
+      if (contactsCache[raw]) return contactsCache[raw];
+      if (contactsCache[norm]) return contactsCache[norm];
+    }
+  }
+
+  // 3. Fall back to direct booking phone only if member/contact phone is unavailable
   const cleanDirect = normalizePhoneDigits(directPhone);
   if (cleanDirect && cleanDirect.length >= 10 && cleanDirect.length <= 15) {
     return cleanDirect;
   }
-  if (!personName) return '';
-
-  const raw = String(personName).trim();
-  const aliased = MEMBER_NAME_ALIASES[raw] || raw;
-  const norm = normalizeSinhalaForMatch(aliased);
-  if (!norm) return '';
-
-  // 1. Check contacts cache (exact & normalized)
-  if (contactsCache[raw]) return contactsCache[raw];
-  if (contactsCache[norm]) return contactsCache[norm];
-
-  // 2. Check members cache (exact, prefix, substring)
-  let member = membersCache.find(m => normalizeSinhalaForMatch(m.name) === norm);
-  if (!member) {
-    member = membersCache.find(m => {
-      const mn = normalizeSinhalaForMatch(m.name);
-      return mn.startsWith(norm + ' ') || mn.startsWith(norm);
-    });
-  }
-  if (!member) {
-    member = membersCache.find(m => {
-      const mn = normalizeSinhalaForMatch(m.name);
-      return mn.includes(norm) || norm.includes(mn);
-    });
-  }
-
-  return (member && member.phone) ? normalizePhoneDigits(member.phone) : '';
+  return '';
 }
 
 /**
@@ -531,6 +579,7 @@ async function startBot() {
   if (!db) {
     db = initFirebase();
   }
+  await migrateSameeraPhoneNumber();
   setupMembersAndContactsListeners();
 
   if (reconnectTimer) {
@@ -917,14 +966,18 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
   const pDate = parseEventDate(rawDate);
   const daysUntil = pDate ? getDaysUntil(pDate) : 0;
 
-  // Check if this is a fresh manual trigger (within last 5 minutes)
+  // Check if this is a fresh manual trigger (within last 5 minutes) via manualTriggerAt or resendNonce
   let isFreshManualTrigger = false;
-  if (!isInitialCheck && booking.manualTriggerAt) {
+  if (!isInitialCheck) {
     let trigMs = 0;
-    if (typeof booking.manualTriggerAt.toDate === 'function') {
-      trigMs = booking.manualTriggerAt.toDate().getTime();
-    } else if (typeof booking.manualTriggerAt === 'number') {
-      trigMs = booking.manualTriggerAt;
+    if (typeof booking.resendNonce === 'number') {
+      trigMs = booking.resendNonce;
+    } else if (booking.manualTriggerAt) {
+      if (typeof booking.manualTriggerAt.toDate === 'function') {
+        trigMs = booking.manualTriggerAt.toDate().getTime();
+      } else if (typeof booking.manualTriggerAt === 'number') {
+        trigMs = booking.manualTriggerAt;
+      }
     }
     if (trigMs && (Date.now() - trigMs) <= 5 * 60 * 1000) {
       isFreshManualTrigger = true;
@@ -933,6 +986,17 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
 
   // Never blast historical past dates automatically (allow only fresh manual re-triggers)
   if (pDate && daysUntil < 0 && !isFreshManualTrigger) return false;
+
+  // Ensure membersCache is loaded before resolving phone
+  if (membersCache.length === 0 && db) {
+    try {
+      const mSnap = await db.collection('members').get();
+      const mList = [];
+      mSnap.forEach(d => mList.push({ id: d.id, ...d.data() }));
+      membersCache = mList;
+      botState.membersCached = mList.length;
+    } catch (_) {}
+  }
 
   const resolvedPhone = resolvePhoneForBooking(personName, booking.phone);
   if (!resolvedPhone) {
@@ -944,12 +1008,40 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
 
   const recipientJid = getRecipientJid(resolvedPhone);
   if (!recipientJid) {
-    pushLog(`⚠️ [Skip Reminder] Invalid phone number for ${personName}: "${resolvedPhone}"`);
+    pushLog(`⚠️ [Skip Reminder] Invalid phone number format for ${personName}: "${resolvedPhone}"`);
+    await db.collection('bookings').doc(docId).update({
+      phone: resolvedPhone,
+      status: 'Invalid_Number',
+      updatedAt: FieldValue.serverTimestamp()
+    }).catch(() => {});
     return false;
   }
 
   sendingDocIds.add(docId);
   try {
+    // Verify phone number exists on WhatsApp before sending
+    let targetJid = recipientJid;
+    try {
+      const waCheck = await sock.onWhatsApp(recipientJid);
+      if (Array.isArray(waCheck)) {
+        const entry = waCheck[0];
+        if (waCheck.length === 0 || (entry && entry.exists === false)) {
+          pushLog(`❌ [Invalid_Number] ${personName} (+${resolvedPhone}) is NOT registered on WhatsApp.`);
+          await db.collection('bookings').doc(docId).update({
+            phone: resolvedPhone,
+            status: 'Invalid_Number',
+            updatedAt: FieldValue.serverTimestamp()
+          });
+          return false;
+        }
+        if (entry && entry.jid) {
+          targetJid = entry.jid;
+        }
+      }
+    } catch (waCheckErr) {
+      pushLog(`⚠️ [onWhatsApp Check] Could not verify ${recipientJid} (${waCheckErr.message}), attempting send anyway...`);
+    }
+
     pushLog(`⚡ [Live Roster Trigger] Sending reminder to ${personName} (+${resolvedPhone})`);
 
     const displayDate = booking.displayDate || rawDate || 'නියමිත දිනය';
@@ -967,8 +1059,8 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
       `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
       `ලෙස කරුණාකර දන්වන්න.`;
 
-    await sendWhatsAppMessage(recipientJid, { text: reminderText });
-    pushLog(`✅ [Sent_1] Personalized reminder delivered to ${personName} (${recipientJid})`);
+    await sendWhatsAppMessage(targetJid, { text: reminderText });
+    pushLog(`✅ [Sent_1] Personalized reminder delivered to ${personName} (${targetJid})`);
 
     botState.lastSentAt = new Date().toISOString();
     botState.lastSentTo = `${personName} (+${resolvedPhone})`;

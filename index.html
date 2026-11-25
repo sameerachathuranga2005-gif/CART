@@ -1697,6 +1697,7 @@
             <option value="Retry_1">🔁 Retry_1 (නැවත යැව්වා 1)</option>
             <option value="Retry_2">🔁 Retry_2 (නැවත යැව්වා 2)</option>
             <option value="Not_Seen">👁️‍🗨️ Not_Seen (බලා නැත)</option>
+            <option value="Invalid_Number">⚠️ Invalid_Number (වැරදි අංකය)</option>
           </select>
         </div>
 
@@ -2026,17 +2027,26 @@
       return null;
     }
 
-    function getPhoneForPerson(personName, slotBooking) {
+    function getLatestMemberPhone(personName) {
       if (!personName) return "";
-      if (slotBooking && slotBooking.phone) {
-        return formatWhatsAppPhone(slotBooking.phone);
+      var m = getMemberByName(personName);
+      if (m && m.phone) {
+        return formatWhatsAppPhone(m.phone);
       }
       if (liveContacts[personName.trim()]) {
         return formatWhatsAppPhone(liveContacts[personName.trim()]);
       }
-      var m = getMemberByName(personName);
-      if (m && m.phone) {
-        return formatWhatsAppPhone(m.phone);
+      return "";
+    }
+
+    function getPhoneForPerson(personName, slotBooking) {
+      if (!personName) return "";
+      var memberPhone = getLatestMemberPhone(personName);
+      if (memberPhone) {
+        return memberPhone;
+      }
+      if (slotBooking && slotBooking.phone) {
+        return formatWhatsAppPhone(slotBooking.phone);
       }
       return "";
     }
@@ -2094,7 +2104,7 @@
       {"id": 28, "name": "සමින්ද ප්රනාන්දු", "under18": false, "phone": "94772421017"},
       {"id": 29, "name": "සංජිවනි ප්රනාන්දු", "under18": false, "phone": ""},
       {"id": 30, "name": "තරූශ ප්රනාන්දු", "under18": true, "phone": "94740028234"},
-      {"id": 31, "name": "සමීර චතුරංග", "under18": false, "phone": "94701206001"},
+      {"id": 31, "name": "සමීර චතුරංග", "under18": false, "phone": "94771438102"},
       {"id": 32, "name": "දුලාජ් සිල්වා", "under18": false, "phone": "94767507288"},
       {"id": 33, "name": "ශෙරින් සිල්වා", "under18": false, "phone": "94775470134"},
       {"id": 34, "name": "රොශේන් ප්රනාන්දු", "under18": false, "phone": "94770725723"},
@@ -2279,6 +2289,17 @@
           seedInitialMembers(true);
           return;
         }
+
+        // Auto-heal Sameera's outdated phone (0771438120 / bot number 94701206001) if found remotely
+        remoteMembers.forEach(function(m) {
+          var ph = formatWhatsAppPhone(m.phone || "");
+          if (ph === "94771438120" || ph === "771438120" || (m.id === 31 && ph === "94701206001")) {
+            m.phone = "94771438102";
+            if (db && m._docId) {
+              db.collection("members").doc(m._docId).update({ phone: "94771438102" }).catch(function(){});
+            }
+          }
+        });
 
         liveMembers = remoteMembers;
         try {
@@ -2955,7 +2976,14 @@
         if (sMem) {
           var parsedMem = JSON.parse(sMem);
           if (Array.isArray(parsedMem) && parsedMem.filter(function(m) { return !!(m.phone && m.phone.trim()); }).length >= 50) {
-            liveMembers = parsedMem;
+            liveMembers = parsedMem.map(function(m) {
+              var ph = formatWhatsAppPhone(m.phone || "");
+              if (ph === "94771438120" || ph === "771438120" || (m.id === 31 && ph === "94701206001")) {
+                m.phone = "94771438102";
+              }
+              return m;
+            });
+            localStorage.setItem(STORE_KEY + "members", JSON.stringify(liveMembers));
           } else {
             localStorage.setItem(STORE_KEY + "members", JSON.stringify(INITIAL_MEMBERS));
           }
@@ -3305,6 +3333,8 @@
       } else if (status === "Declined") {
         var reason = (booking && booking.declineReason) ? (": " + escapeHtml(booking.declineReason)) : "";
         return { cls: "status-declined", html: "✗ Declined" + reason };
+      } else if (status === "Invalid_Number") {
+        return { cls: "status-declined", html: "✗ Invalid Number" };
       } else {
         // Pending states: Waiting, Sent_1, Retry_1, Retry_2, Not_Seen
         var label = "Pending";
@@ -3372,8 +3402,9 @@
       if (!personName) return;
 
       var booking = getBookingForSlot(day, slot, pIndex, personName);
-      var phone = getPhoneForPerson(personName, booking);
-      if (!phone) {
+      var latestPhone = getLatestMemberPhone(personName) || getPhoneForPerson(personName, booking);
+      if (!latestPhone) {
+        alert("කරුණාකර පළමුව " + personName + " සඳහා WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
         showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
         openStatusModal(dayIndex, slotIndex, pIndex);
         return;
@@ -3385,10 +3416,11 @@
       var samePerson = booking && booking.name && normalizeSinhalaForMatch(booking.name) === normalizeSinhalaForMatch(personName);
       var sameDate = booking && (!booking.eventDate || booking.eventDate === isoDate);
       var preserveDayBefore = !!(samePerson && sameDate && booking.dayBeforeReminderSent);
+      var resendNonce = Date.now();
 
       var triggerPayload = {
         name: personName,
-        phone: phone,
+        phone: latestPhone,
         eventDate: isoDate,
         displayDate: day.date,
         eventTime: slot.time,
@@ -3399,6 +3431,7 @@
         declineReason: "",
         swapDetails: "",
         lastSentAt: null,
+        resendNonce: resendNonce,
         dayBeforeReminderSent: preserveDayBefore,
         dayBeforeReminderSentAt: preserveDayBefore ? (booking.dayBeforeReminderSentAt || null) : null,
         summarySent: false,
@@ -3492,8 +3525,9 @@
 
       var rawPhone = document.getElementById("statusInputPhone").value.trim();
       var formattedPhone = formatWhatsAppPhone(rawPhone);
-      if (!formattedPhone && personName) {
-        formattedPhone = getPhoneForPerson(personName, null);
+      var latestMemberPhone = personName ? getLatestMemberPhone(personName) : "";
+      if (!formattedPhone && latestMemberPhone) {
+        formattedPhone = latestMemberPhone;
       }
       var status = (forceBotSend || personChanged) ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
       var swapDetails = forceBotSend ? "" : document.getElementById("statusInputSwap").value.trim();
@@ -3505,6 +3539,7 @@
       }
       if (forceBotSend && !formattedPhone) {
         alert("WhatsApp පණිවිඩය යැවීමට කරුණාකර WhatsApp දුරකථන අංකයක් ඇතුළත් කරන්න!");
+        showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
         return;
       }
 
@@ -3542,6 +3577,7 @@
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       if (forceBotSend) {
+        bookingData.resendNonce = Date.now();
         bookingData.manualTriggerAt = firebase.firestore.FieldValue.serverTimestamp();
       }
       if (personChanged || dateChanged) {
