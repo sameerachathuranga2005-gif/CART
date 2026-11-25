@@ -632,6 +632,48 @@
       border-style: dashed;
     }
 
+    .btn-send-bot-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      font-family: inherit;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #6ee7b7;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-send-bot-mini:hover {
+      background: #d1fae5;
+      color: #065f46;
+      border-color: #10b981;
+    }
+
+    .btn-whatsapp-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 7px;
+      border: 1.5px solid #15803d;
+      background: #16a34a;
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn-whatsapp-trigger:hover {
+      background: #15803d;
+    }
+
     .btn-row-del {
       background: transparent;
       border: none;
@@ -1670,9 +1712,14 @@
           <input type="text" id="statusInputDecline" class="field-input" placeholder="උදා: අසනීප තත්වයක් නිසා">
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('statusModal')">අවලංගු කරන්න</button>
-        <button class="btn btn-primary" onclick="saveParticipantStatusAndPhone()">සුරකින්න (Sync Firestore)</button>
+      <div class="modal-actions" style="flex-direction:column; gap:8px;">
+        <button type="button" class="btn-whatsapp-trigger" onclick="sendWhatsAppNowFromModal()">
+          📲 Send / Resend WhatsApp Now (Bot)
+        </button>
+        <div style="display:flex; justify-content:flex-end; gap:8px; width:100%;">
+          <button class="btn btn-secondary" onclick="closeModal('statusModal')">අවලංගු කරන්න</button>
+          <button class="btn btn-primary" onclick="saveParticipantStatusAndPhone(false)">සුරකින්න (Sync Firestore)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -3221,6 +3268,10 @@
                   html += '<span class="phone-badge add-phone no-print" onclick="openStatusModal(' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Add WhatsApp Phone">+ 📞</span>';
                 }
 
+                // Inline Manual Send / Resend Bot Trigger Button
+                var sendBtnLabel = (status === "Waiting") ? "📲 Send" : "📲 Resend";
+                html += '<button type="button" class="btn-send-bot-mini no-print" onclick="triggerBotReminderForSlot(event,' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Send / Resend WhatsApp via Bot">' + sendBtnLabel + '</button>';
+
                 html += '</div>';
               }
 
@@ -3279,14 +3330,15 @@
       docRef.get().then(function(doc) {
         var existing = doc.exists ? doc.data() : {};
         var isSamePerson = existing.name && normalizeSinhalaForMatch(existing.name) === normalizeSinhalaForMatch(personName);
+        var isSameDate = !existing.eventDate || existing.eventDate === isoDate;
         var status = isSamePerson ? (existing.status || "Waiting") : "Waiting";
         var phone = isSamePerson ? (currentPhone || existing.phone || "") : (currentPhone || "");
         var lastSentAt = isSamePerson ? (existing.lastSentAt || null) : null;
         var retryCount = isSamePerson ? (existing.retryCount || 0) : 0;
         var declineReason = isSamePerson ? (existing.declineReason || "") : "";
         var swapDetails = isSamePerson ? (existing.swapDetails || "") : "";
-        var dayBeforeReminderSent = isSamePerson ? !!existing.dayBeforeReminderSent : false;
-        var dayBeforeReminderSentAt = isSamePerson ? (existing.dayBeforeReminderSentAt || null) : null;
+        var dayBeforeReminderSent = (isSamePerson && isSameDate) ? !!existing.dayBeforeReminderSent : false;
+        var dayBeforeReminderSentAt = (isSamePerson && isSameDate) ? (existing.dayBeforeReminderSentAt || null) : null;
 
         docRef.set({
           name: personName,
@@ -3308,6 +3360,70 @@
           createdAt: existing.createdAt || firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
       }).catch(function(e){ console.warn("Firestore syncSlot error:", e); });
+    }
+
+    function triggerBotReminderForSlot(evt, dayIndex, slotIndex, pIndex) {
+      if (evt && evt.stopPropagation) evt.stopPropagation();
+
+      var active = getActiveData();
+      var day = active[dayIndex];
+      var slot = day.slots[slotIndex];
+      var personName = (slot.participants[pIndex] || "").trim();
+      if (!personName) return;
+
+      var booking = getBookingForSlot(day, slot, pIndex, personName);
+      var phone = getPhoneForPerson(personName, booking);
+      if (!phone) {
+        showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
+        openStatusModal(dayIndex, slotIndex, pIndex);
+        return;
+      }
+
+      var isoDate = formatDateToISO(day.date);
+      var docId = makeBookingDocId(isoDate, slot.time, pIndex);
+
+      var samePerson = booking && booking.name && normalizeSinhalaForMatch(booking.name) === normalizeSinhalaForMatch(personName);
+      var sameDate = booking && (!booking.eventDate || booking.eventDate === isoDate);
+      var preserveDayBefore = !!(samePerson && sameDate && booking.dayBeforeReminderSent);
+
+      var triggerPayload = {
+        name: personName,
+        phone: phone,
+        eventDate: isoDate,
+        displayDate: day.date,
+        eventTime: slot.time,
+        location: day.location || "වැලිගම්පිටිය හන්දිය",
+        days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+        status: "Waiting",
+        retryCount: 0,
+        declineReason: "",
+        swapDetails: "",
+        lastSentAt: null,
+        dayBeforeReminderSent: preserveDayBefore,
+        dayBeforeReminderSentAt: preserveDayBefore ? (booking.dayBeforeReminderSentAt || null) : null,
+        summarySent: false,
+        manualTriggerAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, triggerPayload);
+      liveBookings[makeCompositeBookingKey(isoDate, slot.time, personName)] = liveBookings[docId];
+      renderCurrentMonth();
+
+      if (db) {
+        db.collection("bookings").doc(docId).set(triggerPayload, { merge: true }).then(function() {
+          showToast("Bot reminder triggered for " + personName + "!");
+        }).catch(function(e) {
+          console.warn("Manual bot trigger error:", e);
+          showToast("Bot trigger දෝෂයක් ඇතිවිය.");
+        });
+      } else {
+        showToast("Firestore Offline — Bot trigger කළ නොහැක.");
+      }
+    }
+
+    function sendWhatsAppNowFromModal() {
+      saveParticipantStatusAndPhone(true);
     }
 
     function autoFillPhoneFromMemberInput(nameVal) {
@@ -3356,7 +3472,7 @@
       document.getElementById("declineReasonGroup").style.display = (val === "Declined") ? "flex" : "none";
     }
 
-    function saveParticipantStatusAndPhone() {
+    function saveParticipantStatusAndPhone(forceBotSend) {
       var dayIndex = parseInt(document.getElementById("statusDayIndex").value);
       var slotIndex = parseInt(document.getElementById("statusSlotIndex").value);
       var pIndex = parseInt(document.getElementById("statusPIndex").value);
@@ -3379,12 +3495,16 @@
       if (!formattedPhone && personName) {
         formattedPhone = getPhoneForPerson(personName, null);
       }
-      var status = personChanged ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
-      var swapDetails = document.getElementById("statusInputSwap").value.trim();
-      var declineReason = document.getElementById("statusInputDecline").value.trim();
+      var status = (forceBotSend || personChanged) ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
+      var swapDetails = forceBotSend ? "" : document.getElementById("statusInputSwap").value.trim();
+      var declineReason = forceBotSend ? "" : document.getElementById("statusInputDecline").value.trim();
 
       if (rawPhone && (formattedPhone.length < 10 || formattedPhone.length > 15)) {
         alert("කරුණාකර නිවැරදි 947XXXXXXXX හෝ ජාත්‍යන්තර WhatsApp අංකයක් ඇතුළත් කරන්න!");
+        return;
+      }
+      if (forceBotSend && !formattedPhone) {
+        alert("WhatsApp පණිවිඩය යැවීමට කරුණාකර WhatsApp දුරකථන අංකයක් ඇතුළත් කරන්න!");
         return;
       }
 
@@ -3402,6 +3522,9 @@
 
       // 2. Update booking document in Firestore (with YYYY-MM-DD eventDate)
       var isoDate = formatDateToISO(day.date);
+      var existingBooking = liveBookings[docId] || getBookingForSlot(day, slot, pIndex, personName);
+      var dateChanged = !!(existingBooking && existingBooking.eventDate && existingBooking.eventDate !== isoDate);
+
       var bookingData = {
         name: personName,
         phone: formattedPhone || "",
@@ -3418,14 +3541,19 @@
         summarySent: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      if (personChanged) {
+      if (forceBotSend) {
+        bookingData.manualTriggerAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+      if (personChanged || dateChanged) {
         bookingData.dayBeforeReminderSent = false;
         bookingData.dayBeforeReminderSentAt = null;
       }
 
       if (db) {
         db.collection("bookings").doc(docId).set(bookingData, { merge: true }).then(function() {
-          showToast("Firestore Booking සාර්ථකව සුරැකිණි! WhatsApp reminder එක ස්වයංක්‍රීයව යවනු ඇත.");
+          showToast(forceBotSend
+            ? ("Bot reminder triggered for " + personName + "!")
+            : "Firestore Booking සාර්ථකව සුරැකිණි! WhatsApp reminder එක ස්වයංක්‍රීයව යවනු ඇත.");
         }).catch(function(e) {
           console.warn("Firestore booking write warning:", e);
         });
@@ -3438,7 +3566,9 @@
 
       closeModal("statusModal");
       renderCurrentMonth();
-      showToast("තත්වය සාර්ථකව සුරැකිණි!");
+      if (!forceBotSend) {
+        showToast("තත්වය සාර්ථකව සුරැකිණි!");
+      }
     }
 
     /* ========================================================

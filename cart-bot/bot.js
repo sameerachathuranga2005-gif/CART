@@ -917,8 +917,22 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
   const pDate = parseEventDate(rawDate);
   const daysUntil = pDate ? getDaysUntil(pDate) : 0;
 
-  // Never blast historical past dates
-  if (pDate && daysUntil < 0) return false;
+  // Check if this is a fresh manual trigger (within last 5 minutes)
+  let isFreshManualTrigger = false;
+  if (!isInitialCheck && booking.manualTriggerAt) {
+    let trigMs = 0;
+    if (typeof booking.manualTriggerAt.toDate === 'function') {
+      trigMs = booking.manualTriggerAt.toDate().getTime();
+    } else if (typeof booking.manualTriggerAt === 'number') {
+      trigMs = booking.manualTriggerAt;
+    }
+    if (trigMs && (Date.now() - trigMs) <= 5 * 60 * 1000) {
+      isFreshManualTrigger = true;
+    }
+  }
+
+  // Never blast historical past dates automatically (allow only fresh manual re-triggers)
+  if (pDate && daysUntil < 0 && !isFreshManualTrigger) return false;
 
   const resolvedPhone = resolvePhoneForBooking(personName, booking.phone);
   if (!resolvedPhone) {
