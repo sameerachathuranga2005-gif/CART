@@ -1630,7 +1630,12 @@
 
         <div style="background:#f1f5f9; padding:8px 12px; border-radius:6px; font-size:0.86rem;">
           <div style="font-weight:700;" id="statusModalPersonName">නම: -</div>
-          <div style="color:#64748b; font-size:0.8rem;" id="statusModalSlotDetails">දිනය & වේලාව: -</div>
+          <div style="color:#64748b; font-size:0.8rem;" id="statusModalSlotDetails">දිනය &amp; වේලාව: -</div>
+        </div>
+
+        <div class="field-group">
+          <label>සාමාජිකයාගේ නම (Select or Edit Member):</label>
+          <input type="text" id="statusInputName" class="field-input" list="membersDatalist" placeholder="නම තෝරන්න හෝ ටයිප් කරන්න..." oninput="autoFillPhoneFromMemberInput(this.value)">
         </div>
 
         <div class="field-group">
@@ -2998,12 +3003,33 @@
       if (active[dayIndex] && active[dayIndex].slots[slotIndex]) {
         var old = active[dayIndex].slots[slotIndex].participants[pIndex] || "";
         if (old !== text) {
-          active[dayIndex].slots[slotIndex].participants[pIndex] = text;
+          var day = active[dayIndex];
+          var slot = day.slots[slotIndex];
+          slot.participants[pIndex] = text;
           persistActiveData("නම සුරැකිණි: " + (text || "හිස් කරන ලදී"), false);
           
+          // Optimistically reset local liveBookings slot if person changed
+          var isoDate = formatDateToISO(day.date);
+          var docId = makeBookingDocId(isoDate, slot.time, pIndex);
+          if (text) {
+            var matchedPhone = getPhoneForPerson(text, null);
+            var optData = {
+              name: text,
+              phone: matchedPhone || "",
+              eventDate: isoDate,
+              displayDate: day.date,
+              eventTime: slot.time,
+              status: "Waiting",
+              lastSentAt: null
+            };
+            liveBookings[docId] = optData;
+            liveBookings[makeCompositeBookingKey(isoDate, slot.time, text)] = optData;
+          }
+          renderCurrentMonth();
+
           // Sync with Firestore bookings if db is available
           if (db && text) {
-            syncSlotToFirestore(active[dayIndex], active[dayIndex].slots[slotIndex], pIndex, text);
+            syncSlotToFirestore(day, slot, pIndex, text);
           }
         }
       }
@@ -3252,8 +3278,14 @@
       var docRef = db.collection("bookings").doc(docId);
       docRef.get().then(function(doc) {
         var existing = doc.exists ? doc.data() : {};
-        var status = existing.status || "Waiting";
-        var phone = currentPhone || existing.phone || "";
+        var isSamePerson = existing.name && normalizeSinhalaForMatch(existing.name) === normalizeSinhalaForMatch(personName);
+        var status = isSamePerson ? (existing.status || "Waiting") : "Waiting";
+        var phone = isSamePerson ? (currentPhone || existing.phone || "") : (currentPhone || "");
+        var lastSentAt = isSamePerson ? (existing.lastSentAt || null) : null;
+        var retryCount = isSamePerson ? (existing.retryCount || 0) : 0;
+        var declineReason = isSamePerson ? (existing.declineReason || "") : "";
+        var swapDetails = isSamePerson ? (existing.swapDetails || "") : "";
+
         docRef.set({
           name: personName,
           phone: phone,
@@ -3263,15 +3295,24 @@
           location: day.location || "වැලිගම්පිටිය හන්දිය",
           days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
           status: status,
-          retryCount: existing.retryCount || 0,
-          declineReason: existing.declineReason || "",
-          swapDetails: existing.swapDetails || "",
-          lastSentAt: existing.lastSentAt || null,
+          retryCount: retryCount,
+          declineReason: declineReason,
+          swapDetails: swapDetails,
+          lastSentAt: lastSentAt,
           summarySent: false,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           createdAt: existing.createdAt || firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
       }).catch(function(e){ console.warn("Firestore syncSlot error:", e); });
+    }
+
+    function autoFillPhoneFromMemberInput(nameVal) {
+      var phoneInput = document.getElementById("statusInputPhone");
+      if (!phoneInput) return;
+      var matched = getPhoneForPerson(nameVal, null);
+      if (matched) {
+        phoneInput.value = matched;
+      }
     }
 
     function openStatusModal(dayIndex, slotIndex, pIndex) {
@@ -3293,6 +3334,8 @@
 
       document.getElementById("statusModalPersonName").textContent = "නම: " + personName;
       document.getElementById("statusModalSlotDetails").textContent = day.date + " (" + isoDate + ") | " + slot.time;
+      var nameInput = document.getElementById("statusInputName");
+      if (nameInput) nameInput.value = personName;
       document.getElementById("statusInputPhone").value = phone;
 
       var statusVal = (booking && booking.status) ? booking.status : "Waiting";
@@ -3318,11 +3361,21 @@
       var active = getActiveData();
       var day = active[dayIndex];
       var slot = day.slots[slotIndex];
-      var personName = slot.participants[pIndex];
+      var oldPersonName = slot.participants[pIndex] || "";
+      var nameInputEl = document.getElementById("statusInputName");
+      var personName = (nameInputEl && nameInputEl.value.trim()) ? nameInputEl.value.trim() : oldPersonName;
+      var personChanged = normalizeSinhalaForMatch(oldPersonName) !== normalizeSinhalaForMatch(personName);
+      if (personChanged && personName) {
+        slot.participants[pIndex] = personName;
+        persistActiveData("සාමාජිකයා යාවත්කාලීන විය: " + personName, true);
+      }
 
       var rawPhone = document.getElementById("statusInputPhone").value.trim();
       var formattedPhone = formatWhatsAppPhone(rawPhone);
-      var status = document.getElementById("statusSelect").value || "Waiting";
+      if (!formattedPhone && personName) {
+        formattedPhone = getPhoneForPerson(personName, null);
+      }
+      var status = personChanged ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
       var swapDetails = document.getElementById("statusInputSwap").value.trim();
       var declineReason = document.getElementById("statusInputDecline").value.trim();
 

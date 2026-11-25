@@ -17,13 +17,14 @@ const pino = require('pino');
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 // Modular firebase-admin imports (avoids admin.credential.cert undefined errors)
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 /* ==========================================================================
-   CONFIG & INITIALIZATION
+   CONFIG, RUNTIME STATE & HTTP KEEP-ALIVE SERVER (ALWAYSDATA)
    ========================================================================== */
 const AUTH_DIR = path.resolve(__dirname, 'auth_info_baileys');
 const SERVICE_ACCOUNT_PATH = path.resolve(__dirname, 'serviceAccountKey.json');
@@ -31,11 +32,151 @@ const SERVICE_ACCOUNT_PATH = path.resolve(__dirname, 'serviceAccountKey.json');
 // Pairing phone and admin phone number (Sri Lanka format: 947XXXXXXXX)
 const PAIRING_PHONE = (process.env.PAIRING_PHONE || '94701206001').replace(/\D/g, '');
 const ADMIN_PHONE = (process.env.ADMIN_PHONE || '94701206001').replace(/\D/g, '');
+const HTTP_PORT = parseInt(process.env.PORT || '8100', 10);
+const HTTP_HOST = process.env.IP || '0.0.0.0';
 
 let db = null;
 let sock = null;
 let isReconnecting = false;
 let cronJobsStarted = false;
+let membersCache = [];
+let contactsCache = {};
+const sendingDocIds = new Set();
+
+const botState = {
+  connectionStatus: 'DISCONNECTED', // 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'
+  botJid: null,
+  pairingCode: null,
+  lastPairingError: null,
+  lastDisconnectCode: null,
+  lastDisconnectReason: null,
+  firestoreConnected: false,
+  bookingsMonitored: 0,
+  membersCached: 0,
+  contactsCached: 0,
+  lastSentAt: null,
+  lastSentTo: null,
+  startedAt: new Date().toISOString(),
+  recentLogs: []
+};
+
+function pushLog(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(msg);
+  botState.recentLogs.unshift(line);
+  if (botState.recentLogs.length > 30) {
+    botState.recentLogs.length = 30;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function startHttpKeepAliveServer() {
+  const server = http.createServer((req, res) => {
+    const rawUrl = req.url || '/';
+    const reqPath = rawUrl.split('?')[0].replace(/\/+$/, '') || '/';
+    const wantsJson = rawUrl.includes('format=json') ||
+      (req.headers.accept && req.headers.accept.includes('application/json'));
+
+    if (reqPath === '/status' || reqPath === '/bot/status') {
+      const payload = {
+        service: 'Batagama CART WhatsApp Bot',
+        connectionStatus: botState.connectionStatus,
+        botJid: botState.botJid,
+        pairingPhone: PAIRING_PHONE,
+        pairingCode: botState.pairingCode,
+        lastPairingError: botState.lastPairingError,
+        lastDisconnectCode: botState.lastDisconnectCode,
+        lastDisconnectReason: botState.lastDisconnectReason,
+        firestoreConnected: !!db,
+        bookingsMonitored: botState.bookingsMonitored,
+        membersCached: botState.membersCached,
+        contactsCached: botState.contactsCached,
+        lastSentAt: botState.lastSentAt,
+        lastSentTo: botState.lastSentTo,
+        startedAt: botState.startedAt,
+        recentLogs: botState.recentLogs
+      };
+
+      if (wantsJson) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(payload, null, 2));
+        return;
+      }
+
+      const isConn = botState.connectionStatus === 'CONNECTED';
+      const badgeColor = isConn ? '#16a34a' : (botState.connectionStatus === 'CONNECTING' ? '#d97706' : '#dc2626');
+      const pairingBlock = (!isConn && botState.pairingCode)
+        ? `<div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;padding:16px;margin:16px 0;text-align:center;">
+             <div style="font-weight:700;color:#92400e;margin-bottom:6px;">🔑 WHATSAPP PAIRING CODE (+${escapeHtml(PAIRING_PHONE)})</div>
+             <div style="font-size:2rem;font-weight:900;letter-spacing:4px;font-family:monospace;color:#0f172a;">${escapeHtml(botState.pairingCode)}</div>
+             <div style="font-size:0.85rem;color:#78350f;margin-top:8px;">WhatsApp &gt; Linked Devices &gt; Link a device &gt; Link with phone number instead</div>
+           </div>`
+        : '';
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  ${isConn ? '' : '<meta http-equiv="refresh" content="10">'}
+  <title>CART WhatsApp Bot Status</title>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;}
+    .card{max-width:760px;margin:0 auto;background:#fff;border:1.5px solid #0f172a;border-radius:10px;padding:22px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}
+    .badge{display:inline-block;padding:6px 14px;border-radius:20px;color:#fff;font-weight:800;font-size:0.9rem;background:${badgeColor};}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0;}
+    .stat{background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:0.86rem;}
+    .stat b{display:block;font-size:0.75rem;color:#64748b;text-transform:uppercase;margin-bottom:4px;}
+    pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:0.78rem;max-height:280px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;">🤖 Batagama CART WhatsApp Bot</h2>
+      <span class="badge">${escapeHtml(botState.connectionStatus)}</span>
+    </div>
+    ${pairingBlock}
+    <div class="grid">
+      <div class="stat"><b>Bot JID</b>${escapeHtml(botState.botJid || 'Not connected')}</div>
+      <div class="stat"><b>Firestore</b>${db ? '🟢 Connected' : '🔴 Offline'}</div>
+      <div class="stat"><b>Bookings Monitored</b>${botState.bookingsMonitored}</div>
+      <div class="stat"><b>Members / Contacts</b>${botState.membersCached} / ${botState.contactsCached}</div>
+      <div class="stat"><b>Last Reminder Sent</b>${escapeHtml(botState.lastSentTo ? `${botState.lastSentTo} (${botState.lastSentAt})` : 'None yet')}</div>
+      <div class="stat"><b>Started At</b>${escapeHtml(botState.startedAt)}</div>
+    </div>
+    ${botState.lastPairingError ? `<p style="color:#dc2626;font-size:0.85rem;"><b>Last Pairing Error:</b> ${escapeHtml(botState.lastPairingError)}</p>` : ''}
+    ${botState.lastDisconnectReason ? `<p style="color:#b45309;font-size:0.85rem;"><b>Last Disconnect (${escapeHtml(botState.lastDisconnectCode)}):</b> ${escapeHtml(botState.lastDisconnectReason)}</p>` : ''}
+    <h4 style="margin:14px 0 6px;">Recent Logs</h4>
+    <pre>${escapeHtml(botState.recentLogs.join('\n') || 'No logs yet.')}</pre>
+  </div>
+</body>
+</html>`;
+
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+      return;
+    }
+
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(`CART WhatsApp Bot is Running 24/7! (Status: ${botState.connectionStatus})`);
+  });
+
+  server.listen(HTTP_PORT, HTTP_HOST, () => {
+    pushLog(`🌐 Alwaysdata HTTP Keep-Alive Server listening on http://${HTTP_HOST}:${HTTP_PORT} (/ and /status)`);
+  });
+
+  server.on('error', (err) => {
+    console.error('❌ HTTP Server Error:', err.message);
+  });
+}
 
 // 1. Initialize Firebase Admin SDK
 function initFirebase() {
@@ -46,6 +187,7 @@ function initFirebase() {
     console.warn('👉 Please download it from Firebase Console > Project Settings > Service Accounts');
     console.warn('   and place it in this folder. The bot will wait for it.');
     console.warn('=================================================================\n');
+    botState.firestoreConnected = false;
     return null;
   }
 
@@ -56,9 +198,11 @@ function initFirebase() {
     }, 'cart-bot-app-' + Date.now());
 
     const firestoreDb = getFirestore(firebaseApp);
-    console.log('✅ Firebase Admin Firestore connected successfully.');
+    botState.firestoreConnected = true;
+    pushLog('✅ Firebase Admin Firestore connected successfully.');
     return firestoreDb;
   } catch (err) {
+    botState.firestoreConnected = false;
     console.error('❌ Failed to initialize Firebase Admin:', err.message);
     return null;
   }
@@ -136,38 +280,100 @@ function extractPhoneNumber(jid) {
 }
 
 /**
- * Normalizes any phone number format (0771234567, +94771234567, 94771234567, or with spaces)
- * into WhatsApp JID format (947XXXXXXXX@s.whatsapp.net)
+ * Normalizes any phone number format (0771234567, +94771234567, 94771234567, 393452166607, or with spaces)
+ * into WhatsApp JID format (digits@s.whatsapp.net)
  */
-function getRecipientJid(phone) {
-  if (!phone) return null;
-  let cleanPhone = String(phone).replace(/\D/g, '').replace(/^0/, '94');
-  if (cleanPhone.length === 9) {
-    cleanPhone = '94' + cleanPhone;
+function normalizePhoneDigits(phone) {
+  if (!phone) return '';
+  let clean = String(phone).replace(/\D/g, '');
+  if (clean.startsWith('0')) {
+    clean = '94' + clean.slice(1);
+  } else if (clean.length === 9 && clean.startsWith('7')) {
+    clean = '94' + clean;
   }
-  if (!cleanPhone.startsWith('94') || cleanPhone.length !== 11) {
+  return clean;
+}
+
+function getRecipientJid(phone) {
+  const cleanPhone = normalizePhoneDigits(phone);
+  if (!cleanPhone || cleanPhone.length < 10 || cleanPhone.length > 15) {
     return null;
   }
   return `${cleanPhone}@s.whatsapp.net`;
+}
+
+const MEMBER_NAME_ALIASES = {
+  'ශ්‍රියානි බොතේජු': 'ශිරානි බොතේජු',
+  'රොශිත්': 'රොසිත් පෙරේරා',
+  'ශ්‍රේෂන්': 'ග්රේෂන් මුතුකුමාරණ',
+  'ශ්‍රෙශාන්': 'ග්රේෂන් මුතුකුමාරණ'
+};
+
+function normalizeSinhalaForMatch(str) {
+  return String(str || '')
+    .replace(/[\u200C\u200D]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/ෂ/g, 'ශ')
+    .replace(/ණ/g, 'න')
+    .replace(/ළ/g, 'ල')
+    .replace(/ඳ/g, 'ද')
+    .replace(/ඟ/g, 'ග')
+    .replace(/ඹ/g, 'බ')
+    .replace(/ඬ/g, 'ඩ')
+    .replace(/ං/g, 'න්')
+    .replace(/ී/g, 'ි')
+    .replace(/ූ/g, 'ු')
+    .replace(/ේ/g, 'ෙ')
+    .replace(/\s+/g, ' ');
+}
+
+function resolvePhoneForBooking(personName, directPhone) {
+  const cleanDirect = normalizePhoneDigits(directPhone);
+  if (cleanDirect && cleanDirect.length >= 10 && cleanDirect.length <= 15) {
+    return cleanDirect;
+  }
+  if (!personName) return '';
+
+  const raw = String(personName).trim();
+  const aliased = MEMBER_NAME_ALIASES[raw] || raw;
+  const norm = normalizeSinhalaForMatch(aliased);
+  if (!norm) return '';
+
+  // 1. Check contacts cache (exact & normalized)
+  if (contactsCache[raw]) return contactsCache[raw];
+  if (contactsCache[norm]) return contactsCache[norm];
+
+  // 2. Check members cache (exact, prefix, substring)
+  let member = membersCache.find(m => normalizeSinhalaForMatch(m.name) === norm);
+  if (!member) {
+    member = membersCache.find(m => {
+      const mn = normalizeSinhalaForMatch(m.name);
+      return mn.startsWith(norm + ' ') || mn.startsWith(norm);
+    });
+  }
+  if (!member) {
+    member = membersCache.find(m => {
+      const mn = normalizeSinhalaForMatch(m.name);
+      return mn.includes(norm) || norm.includes(mn);
+    });
+  }
+
+  return (member && member.phone) ? normalizePhoneDigits(member.phone) : '';
 }
 
 /**
  * Generates phone variants to match numbers with or without leading 0 or country code 94
  */
 function normalizePhoneVariants(phone) {
-  const digits = String(phone).replace(/\D/g, '').replace(/^0/, '94');
-  const variants = new Set([digits]);
+  const rawDigits = String(phone).replace(/\D/g, '');
+  const digits = normalizePhoneDigits(rawDigits);
+  const variants = new Set([digits, rawDigits, '+' + digits, '+' + rawDigits].filter(Boolean));
   if (digits.startsWith('94') && digits.length === 11) {
     variants.add('0' + digits.slice(2));
     variants.add(digits.slice(2));
-  } else if (digits.startsWith('0') && digits.length === 10) {
-    variants.add('94' + digits.slice(1));
-    variants.add(digits.slice(1));
-  } else if (digits.length === 9) {
-    variants.add('94' + digits);
-    variants.add('0' + digits);
   }
-  return Array.from(variants);
+  return Array.from(variants).slice(0, 10);
 }
 
 /**
@@ -216,7 +422,10 @@ async function startBot() {
   if (!db) {
     db = initFirebase();
   }
+  setupMembersAndContactsListeners();
 
+  botState.connectionStatus = 'CONNECTING';
+  pushLog('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING...');
   console.log('\n======================================================');
   console.log('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING...');
   console.log(`📱 Target Pairing Phone: +${PAIRING_PHONE}`);
@@ -240,10 +449,13 @@ async function startBot() {
 
   // Pairing code request if not already authenticated
   if (!sock.authState.creds.registered) {
-    console.log(`⏳ Requesting WhatsApp Pairing Code for +${PAIRING_PHONE}...`);
+    pushLog(`⏳ Requesting WhatsApp Pairing Code for +${PAIRING_PHONE}...`);
     setTimeout(async () => {
       try {
         const code = await sock.requestPairingCode(PAIRING_PHONE);
+        botState.pairingCode = code;
+        botState.lastPairingError = null;
+        pushLog(`🔑 WHATSAPP PAIRING CODE GENERATED: ${code}`);
         console.log('\n======================================================');
         console.log('🔑 WHATSAPP PAIRING CODE GENERATED:');
         console.log(`👉 CODE: ${code}`);
@@ -255,7 +467,8 @@ async function startBot() {
         console.log(`5. Enter the pairing code above: ${code}`);
         console.log('======================================================\n');
       } catch (pairErr) {
-        console.error('❌ Failed to request pairing code:', pairErr.message);
+        botState.lastPairingError = pairErr.message;
+        pushLog(`❌ Failed to request pairing code: ${pairErr.message}`);
         console.log('💡 Note: Ensure phone number is in international format without + or spaces.');
       }
     }, 3500);
@@ -269,15 +482,20 @@ async function startBot() {
     const { connection, lastDisconnect } = update;
 
     if (connection === 'close') {
+      botState.connectionStatus = 'DISCONNECTED';
       const statusCode = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output?.statusCode
         : lastDisconnect?.error?.output?.statusCode;
 
+      botState.lastDisconnectCode = statusCode || 'unknown';
+      botState.lastDisconnectReason = lastDisconnect?.error?.message || `Status ${statusCode || 'closed'}`;
+
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log(`⚠️ Connection closed. Status code: ${statusCode}. Reconnecting: ${shouldReconnect}`);
+      pushLog(`⚠️ Connection closed. Status code: ${statusCode}. Reconnecting: ${shouldReconnect}`);
 
       if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-        console.log('🔒 Device logged out. Clearing auth directory to allow new pairing...');
+        pushLog('🔒 Device logged out. Clearing auth directory to allow new pairing...');
+        botState.pairingCode = null;
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (rmErr) {
@@ -295,9 +513,16 @@ async function startBot() {
         }
       }
     } else if (connection === 'open') {
+      botState.connectionStatus = 'CONNECTED';
+      botState.botJid = sock.user?.id || 'Connected';
+      botState.pairingCode = null;
+      botState.lastPairingError = null;
+      botState.lastDisconnectReason = null;
+
+      pushLog(`🚀 WHATSAPP BOT CONNECTED SUCCESSFULLY (${botState.botJid})`);
       console.log('\n======================================================');
       console.log('🚀 WHATSAPP BOT CONNECTED SUCCESSFULLY & LIVE 24/7!');
-      console.log(`📱 Bot JID: ${sock.user?.id || 'Connected'}`);
+      console.log(`📱 Bot JID: ${botState.botJid}`);
       console.log('======================================================\n');
 
       // Start Real-time Firestore Listener on bookings collection
@@ -321,7 +546,10 @@ async function startBot() {
         if (msg.key.remoteJid === 'status@broadcast') continue;
 
         const remoteJid = msg.key.remoteJid;
-        const senderPhone = extractPhoneNumber(remoteJid);
+        const phoneSourceJid = (remoteJid && remoteJid.endsWith('@lid') && msg.key.remoteJidAlt)
+          ? msg.key.remoteJidAlt
+          : remoteJid;
+        const senderPhone = extractPhoneNumber(phoneSourceJid);
         
         // Extract message text content
         const messageText = (
@@ -333,7 +561,7 @@ async function startBot() {
 
         if (!messageText) continue;
 
-        console.log(`\n📩 Incoming message from +${senderPhone}: "${messageText}"`);
+        pushLog(`📩 Incoming message from +${senderPhone}: "${messageText}"`);
 
         await handleIncomingMessage(remoteJid, senderPhone, messageText);
       }
@@ -499,10 +727,121 @@ async function handleIncomingMessage(remoteJid, senderPhone, rawText) {
 }
 
 /* ==========================================================================
+   MEMBERS & CONTACTS FALLBACK LISTENERS
+   ========================================================================== */
+let membersUnsub = null;
+let contactsUnsub = null;
+
+function setupMembersAndContactsListeners() {
+  if (!db) return;
+
+  if (!membersUnsub) {
+    membersUnsub = db.collection('members').onSnapshot((snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      membersCache = list;
+      botState.membersCached = list.length;
+    }, (err) => {
+      console.warn('⚠️ Members listener warning:', err.message);
+    });
+  }
+
+  if (!contactsUnsub) {
+    contactsUnsub = db.collection('contacts').onSnapshot((snapshot) => {
+      const map = {};
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (d && d.name && d.phone) {
+          const clean = normalizePhoneDigits(d.phone);
+          if (clean) {
+            map[String(d.name).trim()] = clean;
+            map[normalizeSinhalaForMatch(d.name)] = clean;
+          }
+        }
+      });
+      contactsCache = map;
+      botState.contactsCached = snapshot.size;
+    }, (err) => {
+      console.warn('⚠️ Contacts listener warning:', err.message);
+    });
+  }
+}
+
+/* ==========================================================================
    REAL-TIME FIRESTORE LISTENER (INSTANT REMINDERS ON ROSTER UPDATE)
    ========================================================================== */
 let realtimeListenerUnsub = null;
-let isInitialSnap = true;
+
+async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
+  if (!sock || !db || botState.connectionStatus !== 'CONNECTED') return false;
+  if (!booking || booking.status !== 'Waiting' || booking.lastSentAt) return false;
+  if (sendingDocIds.has(docId)) return false;
+
+  const personName = booking.name || booking.memberName || '';
+  if (!personName) return false;
+
+  const rawDate = booking.eventDate || booking.date || '';
+  const pDate = parseEventDate(rawDate);
+  const daysUntil = pDate ? getDaysUntil(pDate) : 0;
+
+  // Never blast historical past dates
+  if (pDate && daysUntil < 0) return false;
+
+  const resolvedPhone = resolvePhoneForBooking(personName, booking.phone);
+  if (!resolvedPhone) {
+    if (!isInitialCheck) {
+      pushLog(`⚠️ [Skip Reminder] No phone found for ${personName} (doc: ${docId})`);
+    }
+    return false;
+  }
+
+  const recipientJid = getRecipientJid(resolvedPhone);
+  if (!recipientJid) {
+    pushLog(`⚠️ [Skip Reminder] Invalid phone number for ${personName}: "${resolvedPhone}"`);
+    return false;
+  }
+
+  sendingDocIds.add(docId);
+  try {
+    pushLog(`⚡ [Live Roster Trigger] Sending reminder to ${personName} (+${resolvedPhone})`);
+
+    const displayDate = booking.displayDate || rawDate || 'නියමිත දිනය';
+    const displayTime = booking.eventTime || booking.timeSlot || booking.slot || 'නියමිත වේලාව';
+    const displayLoc = booking.location || 'වැලිගම්පිටිය හන්දිය';
+
+    const reminderText = `ආයුබෝවන් ${personName}! 👋\n` +
+      `පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n` +
+      `📅 දිනය: *${displayDate}*\n` +
+      `⏰ වේලාව: *${displayTime}*\n` +
+      `📍 ස්ථානය: *${displayLoc}*\n\n` +
+      `ඔබ මේ සඳහා සහභාගි වන්නේද?\n` +
+      `• පැමිණෙන්නේ නම්: *හරි* (හෝ *yes* / *ok*)\n` +
+      `• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n` +
+      `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
+      `ලෙස කරුණාකර දන්වන්න.`;
+
+    await sock.sendMessage(recipientJid, { text: reminderText });
+    pushLog(`✅ [Sent_1] Personalized reminder delivered to ${personName} (${recipientJid})`);
+
+    botState.lastSentAt = new Date().toISOString();
+    botState.lastSentTo = `${personName} (+${resolvedPhone})`;
+
+    // Mark Sent_1 and ensure resolved phone is saved in Firestore
+    await db.collection('bookings').doc(docId).update({
+      phone: resolvedPhone,
+      status: 'Sent_1',
+      lastSentAt: FieldValue.serverTimestamp(),
+      retryCount: 0,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    return true;
+  } catch (sendErr) {
+    pushLog(`❌ Failed to send reminder to ${recipientJid}: ${sendErr.message}`);
+    return false;
+  } finally {
+    sendingDocIds.delete(docId);
+  }
+}
 
 function setupFirestoreRealtimeListener() {
   if (!db || !sock) return;
@@ -511,69 +850,31 @@ function setupFirestoreRealtimeListener() {
     realtimeListenerUnsub = null;
   }
 
-  console.log('📡 Starting Firestore Real-time Listener on `bookings` collection...');
+  let isInitialSnap = true;
+  pushLog('📡 Starting Firestore Real-time Listener on `bookings` collection...');
 
   realtimeListenerUnsub = db.collection('bookings').onSnapshot(async (snapshot) => {
-    // Prevent blast-sending to existing database records on bot cold boot
+    botState.bookingsMonitored = snapshot.size;
+
     if (isInitialSnap) {
       isInitialSnap = false;
-      console.log(`📋 [Firestore Real-time Listener] Initial sync complete. Monitoring ${snapshot.size} bookings for live updates.`);
+      pushLog(`📋 [Firestore Real-time Listener] Initial sync complete. Monitoring ${snapshot.size} bookings.`);
+
+      // Process any pending today/future Waiting bookings created while bot was offline/restarting
+      for (const doc of snapshot.docs) {
+        const sent = await trySendBookingReminder(doc.id, doc.data(), true);
+        if (sent) await delay(1200);
+      }
       return;
     }
 
     for (const change of snapshot.docChanges()) {
       if (change.type === 'added' || change.type === 'modified') {
-        const booking = change.doc.data();
-        const docId = change.doc.id;
-
-        // Condition for sending instant reminder:
-        // 1. Participant name and phone exist
-        // 2. Status is "Waiting"
-        // 3. Reminder has not already been sent (!booking.lastSentAt)
-        if (booking.name && booking.phone && booking.status === 'Waiting' && !booking.lastSentAt) {
-          const recipientJid = getRecipientJid(booking.phone);
-          if (!recipientJid) {
-            console.warn(`⚠️ [Skip Reminder] Invalid phone number for ${booking.name}: "${booking.phone}"`);
-            continue;
-          }
-
-          console.log(`\n⚡ [Live Roster Trigger] New or updated participant detected: ${booking.name} (+${booking.phone})`);
-          console.log(`📤 Sending personalized WhatsApp reminder immediately to ${recipientJid}...`);
-
-          const displayDate = booking.displayDate || booking.eventDate || 'නියමිත දිනය';
-          const displayTime = booking.eventTime || 'නියමිත වේලාව';
-          const displayLoc = booking.location || 'වැලිගම්පිටිය හන්දිය';
-
-          const reminderText = `ආයුබෝවන් ${booking.name}! 👋\n` +
-            `පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n` +
-            `📅 දිනය: *${displayDate}*\n` +
-            `⏰ වේලාව: *${displayTime}*\n` +
-            `📍 ස්ථානය: *${displayLoc}*\n\n` +
-            `ඔබ මේ සඳහා සහභාගි වන්නේද?\n` +
-            `• පැමිණෙන්නේ නම්: *හරි* (හෝ *yes* / *ok*)\n` +
-            `• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n` +
-            `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
-            `ලෙස කරුණාකර දන්වන්න.`;
-
-          try {
-            await sock.sendMessage(recipientJid, { text: reminderText });
-            console.log(`✅ [Sent] Personalized reminder delivered to ${booking.name} (${recipientJid})`);
-
-            // Mark Sent_1 in Firestore
-            await db.collection('bookings').doc(docId).update({
-              status: 'Sent_1',
-              lastSentAt: FieldValue.serverTimestamp(),
-              retryCount: 0,
-              updatedAt: FieldValue.serverTimestamp()
-            });
-          } catch (sendErr) {
-            console.error(`❌ Failed to send reminder to ${recipientJid}:`, sendErr.message);
-          }
-        }
+        await trySendBookingReminder(change.doc.id, change.doc.data(), false);
       }
     }
   }, (err) => {
-    console.error('❌ Firestore real-time listener error:', err.message);
+    pushLog(`❌ Firestore real-time listener error: ${err.message}`);
   });
 }
 
@@ -586,7 +887,7 @@ function setupCronJobs() {
   // 1. Every 30 minutes: Check bookings and send reminders (0-2 days ahead)
   cron.schedule('*/30 * * * *', async () => {
     console.log(`\n[${new Date().toISOString()}] 🔍 Running 30-min Attendance & Reminder check...`);
-    if (!sock || !db) return;
+    if (!sock || !db || botState.connectionStatus !== 'CONNECTED') return;
 
     try {
       const snapshot = await db.collection('bookings').get();
@@ -598,16 +899,19 @@ function setupCronJobs() {
       for (const doc of snapshot.docs) {
         const b = doc.data();
         const docId = doc.id;
-        if (!b.phone) continue;
+        const personName = b.name || b.memberName || '';
+        const resolvedPhone = resolvePhoneForBooking(personName, b.phone);
+        if (!resolvedPhone) continue;
 
-        const pDate = parseEventDate(b.eventDate);
+        const rawDate = b.eventDate || b.date || '';
+        const pDate = parseEventDate(rawDate);
         if (!pDate) continue;
 
         const daysUntil = getDaysUntil(pDate);
         // Only active for 0 to 2 days before service
         if (daysUntil < 0 || daysUntil > 2) continue;
 
-        const recipientJid = getRecipientJid(b.phone);
+        const recipientJid = getRecipientJid(resolvedPhone);
         if (!recipientJid) continue;
         let lastSentMs = 0;
         if (b.lastSentAt) {
@@ -620,60 +924,47 @@ function setupCronJobs() {
           }
         }
 
+        const displayDate = b.displayDate || rawDate || '';
+        const displayTime = b.eventTime || b.timeSlot || b.slot || '';
+
         // A. Initial Reminder (Waiting -> Sent_1)
         if (b.status === 'Waiting') {
-          const msg = `ආයුබෝවන් ${b.name || ''}! 👋\n` +
-                      `පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n` +
-                      `📅 දිනය: *${b.eventDate || ''}*\n` +
-                      `⏰ වේලාව: *${b.eventTime || ''}*\n` +
-                      `📍 ස්ථානය: *${b.location || 'නමස්කාර මධ්‍යස්ථානය'}*\n\n` +
-                      `ඔබ මේ සඳහා සහභාගි වන්නේද?\n` +
-                      `• පැමිණෙන්නේ නම්: *හරි* හෝ *yes*\n` +
-                      `• පැමිණිය නොහැකි නම්: *බෑ* හෝ *no*\n` +
-                      `• මාරු කරන්නේ නම්: *swap [විස්තර]*\n\n` +
-                      `ලෙස කරුණාකර දන්වන්න.`;
-
-          await sock.sendMessage(recipientJid, { text: msg });
-          await db.collection('bookings').doc(docId).update({
-            status: 'Sent_1',
-            lastSentAt: FieldValue.serverTimestamp(),
-            retryCount: 0,
-            updatedAt: FieldValue.serverTimestamp()
-          });
-          console.log(`📤 [Sent_1] Sent initial reminder to ${b.name} (+${b.phone})`);
+          await trySendBookingReminder(docId, b, false);
           await delay(2000);
         }
         // B. Retry 1 Reminder (Sent_1 -> Retry_1 after 6 hours)
         else if (b.status === 'Sent_1' && (nowMs - lastSentMs) >= SIX_HOURS_MS) {
-          const msg = `මතක් කිරීමයි (1): ${b.name || ''},\n` +
-                      `*${b.eventDate || ''}* (${b.eventTime || ''}) දින සේවා වාරය තහවුරු කර නොමැත.\n\n` +
+          const msg = `මතක් කිරීමයි (1): ${personName},\n` +
+                      `*${displayDate}* (${displayTime}) දින සේවා වාරය තහවුරු කර නොමැත.\n\n` +
                       `කරුණාකර ඔබ සහභාගි වන්නේද යන්න *හරි* හෝ *බෑ* ලෙස පිළිතුරක් එවන්න.`;
 
           await sock.sendMessage(recipientJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
+            phone: resolvedPhone,
             status: 'Retry_1',
             lastSentAt: FieldValue.serverTimestamp(),
             retryCount: 1,
             updatedAt: FieldValue.serverTimestamp()
           });
-          console.log(`📤 [Retry_1] Sent retry 1 reminder to ${b.name} (+${b.phone})`);
+          pushLog(`📤 [Retry_1] Sent retry 1 reminder to ${personName} (+${resolvedPhone})`);
           await delay(2000);
         }
         // C. Retry 2 Reminder (Retry_1 -> Retry_2 after 6 hours)
         else if (b.status === 'Retry_1' && (nowMs - lastSentMs) >= SIX_HOURS_MS) {
-          const msg = `අවසාන මතක් කිරීමයි: ${b.name || ''},\n` +
-                      `*${b.eventDate || ''}* දින සේවා වාරය තහවුරු කිරීම සඳහා කරුණාකර අද දින තුළ පිළිතුරක් එවන්න.\n\n` +
+          const msg = `අවසාන මතක් කිරීමයි: ${personName},\n` +
+                      `*${displayDate}* දින සේවා වාරය තහවුරු කිරීම සඳහා කරුණාකර අද දින තුළ පිළිතුරක් එවන්න.\n\n` +
                       `• සහභාගි වන්නේ නම්: *හරි*\n` +
                       `• නොහැකි නම්: *බෑ*`;
 
           await sock.sendMessage(recipientJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
+            phone: resolvedPhone,
             status: 'Retry_2',
             lastSentAt: FieldValue.serverTimestamp(),
             retryCount: 2,
             updatedAt: FieldValue.serverTimestamp()
           });
-          console.log(`📤 [Retry_2] Sent retry 2 reminder to ${b.name} (+${b.phone})`);
+          pushLog(`📤 [Retry_2] Sent retry 2 reminder to ${personName} (+${resolvedPhone})`);
           await delay(2000);
         }
         // D. Mark Not_Seen (Retry_2 -> Not_Seen after 6 hours)
@@ -683,7 +974,7 @@ function setupCronJobs() {
             notSeenAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
           });
-          console.log(`⚠️ [Not_Seen] Marked ${b.name} (+${b.phone}) as Not_Seen`);
+          pushLog(`⚠️ [Not_Seen] Marked ${personName} (+${resolvedPhone}) as Not_Seen`);
         }
       }
     } catch (cronErr) {
@@ -811,8 +1102,13 @@ async function sendAndSaveDailySummary(targetJid = null) {
   }
 }
 
-// Start the bot
+// Start Alwaysdata HTTP Keep-Alive Server immediately
+startHttpKeepAliveServer();
+
+// Start the WhatsApp bot
 startBot().catch(err => {
+  botState.connectionStatus = 'DISCONNECTED';
+  botState.lastDisconnectReason = err.message;
   console.error('Fatal Bot Startup Error:', err);
 });
 
