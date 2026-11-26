@@ -14,6 +14,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+  <!-- html2pdf.js for 1-Click Daily & Full Monthly PDF Reports -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 
   <style>
     :root {
@@ -416,9 +418,17 @@
       font-weight: 700;
       color: #000000;
       outline: none;
-      border-radius: 4px;
-      padding: 2px 4px;
-      cursor: text;
+      border-radius: 6px;
+      padding: 2px 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .date-heading-text:hover {
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: inset 0 0 0 1.5px rgba(15, 23, 42, 0.35);
     }
     .date-heading-text:focus {
       background: #ffffff;
@@ -537,26 +547,27 @@
       display: inline-block;
       width: 95%;
       min-height: 20px;
-      padding: 1px 4px;
-      border-radius: 3px;
+      padding: 2px 6px;
+      border-radius: 4px;
       font-weight: 700;
       color: #000000;
       outline: none;
-      cursor: text;
+      cursor: pointer;
       transition: all 0.12s ease;
       word-break: break-word;
     }
     .name-editable:hover {
-      background: rgba(0, 0, 0, 0.04);
+      background: rgba(15, 23, 42, 0.08);
+      text-decoration: underline dotted #475569;
     }
     .name-editable:focus {
       background: #ffffff;
       outline: 2px solid #0f172a;
     }
     .name-editable.empty {
-      color: #94a3b8;
+      color: #64748b;
       font-style: italic;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
 
     /* Live Meta Badges Row (Status + WhatsApp Phone) */
@@ -1580,6 +1591,251 @@
       font-weight: 700;
       text-decoration: none;
     }
+
+    /* Cross-Device Interactive Day Send Queue Modal (#dayQueueModal) */
+    .dq-header-meta {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dq-progress-track {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .dq-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #16a34a;
+      transition: width 0.25s ease;
+    }
+    .dq-member-card {
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dq-member-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .dq-member-meta {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .dq-done-box {
+      display: none;
+      background: #dcfce7;
+      border: 1.5px solid #22c55e;
+      color: #14532d;
+      border-radius: 10px;
+      padding: 18px 16px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    /* Searchable Member Picker Modal (#memberPickerModal) */
+    .mp-slot-banner {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: #334155;
+      font-weight: 700;
+    }
+    .mp-search-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #0f172a;
+      border-radius: 6px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .mp-search-input:focus {
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12);
+    }
+    .mp-list {
+      max-height: 290px;
+      overflow-y: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+    .mp-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      text-align: left;
+      background: #ffffff;
+      border: none;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.1s ease;
+    }
+    .mp-item:last-child {
+      border-bottom: none;
+    }
+    .mp-item:hover {
+      background: #f0fdf4;
+    }
+    .mp-item.active {
+      background: #dcfce7;
+    }
+    .mp-item-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .mp-id-tag {
+      background: #f1f5f9;
+      color: #64748b;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .mp-phone-tag {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #15803d;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+    .mp-phone-tag.missing {
+      color: #94a3b8;
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    .mp-custom-btn {
+      width: 100%;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1.5px dashed #60a5fa;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+    .mp-custom-btn:hover {
+      background: #dbeafe;
+    }
+
+    /* Interactive Sinhala Calendar Date Picker Modal (#datePickerModal) */
+    .dp-preview-box {
+      background: #fef9c3;
+      border: 1.5px solid #eab308;
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.96rem;
+      color: #0f172a;
+    }
+    .dp-cal-card {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 10px;
+    }
+    .dp-cal-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .dp-cal-nav-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: inherit;
+      color: #0f172a;
+    }
+    .dp-cal-nav-btn:hover {
+      background: #e2e8f0;
+    }
+    .dp-cal-month-title {
+      font-weight: 800;
+      font-size: 0.94rem;
+      color: #0f172a;
+    }
+    .dp-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+    }
+    .dp-cal-dow {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #64748b;
+      padding: 4px 0;
+    }
+    .dp-cal-day {
+      border: 1px solid transparent;
+      background: #f8fafc;
+      color: #0f172a;
+      border-radius: 6px;
+      padding: 6px 2px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .dp-cal-day:hover {
+      background: #e0f2fe;
+      border-color: #38bdf8;
+    }
+    .dp-cal-day.selected {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #15803d;
+    }
+    .dp-cal-day.today:not(.selected) {
+      border-color: #0f172a;
+      background: #fef9c3;
+    }
+    .dp-cal-day.empty {
+      background: transparent;
+      cursor: default;
+    }
   </style>
 </head>
 <body>
@@ -1897,7 +2153,14 @@
               <span class="pill-charm-slate">WhatsApp Live Attendance &amp; Daily Reports</span>
             </div>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;" class="no-print">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;" class="no-print">
+            <select id="repDayPdfSelect" class="field-input" style="padding:5px 8px; font-size:0.8rem; max-width:210px;" title="දෛනික PDF වාර්තාව සඳහා දිනය තෝරන්න"></select>
+            <button type="button" class="btn btn-secondary" onclick="generateSudharaDailyReportPdf(document.getElementById('repDayPdfSelect').value)">
+              📄 දෛනික PDF (Day PDF)
+            </button>
+            <button type="button" class="btn btn-wa-batch" onclick="generateSudharaMonthlyReportPdf()">
+              📊 සුධාර සිල්වාට මාසික PDF වාර්තාව යවන්න (Month PDF)
+            </button>
             <button class="btn btn-secondary" onclick="saveCurrentSummaryToFirestore(); setTimeout(renderReportView, 600);">
               💾 Save Report to Firestore
             </button>
@@ -2107,6 +2370,17 @@
         <h3 id="modalSummaryTitle">📊 පොදු සේවය - පූර්ණ සාරාංශය (Live Summary)</h3>
         <button class="modal-close" onclick="closeModal('summaryModal')">&times;</button>
       </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 18px; background:#f0fdf4; border-bottom:1.5px solid #86efac;">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <select id="sumDayPdfSelect" class="field-input" style="padding:4px 8px; font-size:0.78rem; max-width:200px;" title="දෛනික PDF වාර්තාව සඳහා දිනය තෝරන්න"></select>
+          <button type="button" class="btn btn-secondary" style="padding:5px 10px; font-size:0.78rem;" onclick="generateSudharaDailyReportPdf(document.getElementById('sumDayPdfSelect').value)">
+            📄 දෛනික PDF (Day PDF)
+          </button>
+        </div>
+        <button type="button" class="btn-wa-batch" onclick="generateSudharaMonthlyReportPdf()">
+          📊 සුධාර සිල්වාට මාසික PDF වාර්තාව යවන්න (Month PDF)
+        </button>
+      </div>
       <div class="modal-body-scroll">
         <!-- Live Counts Stats Grid -->
         <div class="summary-stats-grid">
@@ -2220,6 +2494,111 @@
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('memberModal')">අවලංගු කරන්න</button>
         <button class="btn btn-primary" onclick="saveMember()">සුරකින්න (Save Member)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Cross-Device Interactive Day Send Queue -->
+  <div class="modal-overlay" id="dayQueueModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3>📲 WhatsApp Day Queue</h3>
+        <button class="modal-close" onclick="closeDayQueueModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="dq-header-meta">
+          <div>
+            <div style="font-weight:800; font-size:0.92rem; color:#0f172a;" id="dqDayDate">-</div>
+            <div style="font-size:0.78rem; font-weight:600; color:#475569;" id="dqDayLocation">-</div>
+          </div>
+          <span class="pill-charm-gold" id="dqProgressBadge">0 / 0</span>
+        </div>
+
+        <div class="dq-progress-track">
+          <div class="dq-progress-fill" id="dqProgressFill"></div>
+        </div>
+
+        <div class="dq-member-card" id="dqMemberCard">
+          <div class="dq-member-name" id="dqMemberName">-</div>
+          <div class="dq-member-meta">
+            <span id="dqMemberSlot">⏰ -</span>
+            <span id="dqMemberPhone">📞 -</span>
+          </div>
+        </div>
+
+        <div class="dq-done-box" id="dqDoneBox">
+          ✅ සියලු දෙනාටම යවා අවසන්! (All Sent)
+        </div>
+      </div>
+      <div class="modal-actions" style="flex-direction:column; gap:8px;">
+        <button type="button" class="btn-whatsapp-trigger" id="btnDayQueueSend" onclick="sendCurrentDayQueueMember()">
+          📲 Open WhatsApp &amp; Next (1/1)
+        </button>
+        <div style="display:flex; justify-content:space-between; gap:8px; width:100%;">
+          <button type="button" class="btn btn-secondary" id="btnDayQueueSkip" onclick="skipCurrentDayQueueMember()">Skip ➔</button>
+          <button type="button" class="btn btn-secondary" onclick="closeDayQueueModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Click-on-Name Searchable Member Picker (101 Members) -->
+  <div class="modal-overlay" id="memberPickerModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3>👥 සාමාජිකයා තෝරන්න (Select Member)</h3>
+        <button class="modal-close" onclick="closeModal('memberPickerModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="mp-slot-banner" id="mpSlotBanner">-</div>
+
+        <input type="text" id="mpSearchInput" class="mp-search-input"
+          placeholder="නමක් සොයන්න... (Name or Phone)"
+          oninput="filterMemberPickerList(this.value)"
+          onkeydown="handleMemberPickerKeydown(event)">
+
+        <div class="mp-list" id="mpMemberList">
+          <!-- Populated dynamically from liveMembers -->
+        </div>
+
+        <button type="button" class="mp-custom-btn" id="btnMpUseCustom" style="display:none;" onclick="applyCustomMemberFromPicker()">
+          ➕ Custom Name යොදන්න
+        </button>
+      </div>
+      <div class="modal-actions" style="justify-content:space-between;">
+        <button type="button" class="btn btn-secondary" style="color:#dc2626; border-color:#fca5a5;" onclick="clearSlotFromPicker()">🗑️ Clear Slot</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('memberPickerModal')">වසන්න (Close)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Click-on-Date Interactive Calendar Picker -->
+  <div class="modal-overlay" id="datePickerModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3>📅 දිනය තෝරන්න (Calendar Picker)</h3>
+        <button class="modal-close" onclick="closeModal('datePickerModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="dp-preview-box" id="dpFormattedPreview">දිනය : -</div>
+
+        <div class="field-group">
+          <label>දිනය තෝරන්න (Quick Date Input):</label>
+          <input type="date" id="dpNativeDateInput" class="field-input" onchange="handleNativeDatePickerChange(this.value)">
+        </div>
+
+        <div class="dp-cal-card">
+          <div class="dp-cal-nav">
+            <button type="button" class="dp-cal-nav-btn" onclick="changeDpCalMonth(-1)" title="Previous Month">◀</button>
+            <span class="dp-cal-month-title" id="dpCalMonthTitle">-</span>
+            <button type="button" class="dp-cal-nav-btn" onclick="changeDpCalMonth(1)" title="Next Month">▶</button>
+          </div>
+          <div class="dp-cal-grid" id="dpCalGrid"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('datePickerModal')">අවලංගු කරන්න</button>
+        <button type="button" class="btn btn-wa-batch" id="btnDpConfirm" onclick="applyPickedDateToDay()">✓ තහවුරු කරන්න</button>
       </div>
     </div>
   </div>
@@ -2358,31 +2737,103 @@
       }, function(err) {
         console.warn("Contacts listener warning:", err);
       });
+
+      // 3. Real-time sync with `schedule` collection (monthly day schedules)
+      db.collection("schedule").onSnapshot(function(snapshot) {
+        var changed = false;
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          if (d && Array.isArray(d.days) && d.days.length > 0 && rosterStore[doc.id]) {
+            rosterStore[doc.id] = d.days;
+            try {
+              localStorage.setItem(STORE_KEY + doc.id, JSON.stringify(d.days));
+            } catch (e) {}
+            changed = true;
+          }
+        });
+        if (changed) {
+          renderCurrentMonth();
+          if (typeof currentAppView !== "undefined" && currentAppView === "report") {
+            renderReportView();
+          }
+          var sumModalEl = document.getElementById("summaryModal");
+          if (sumModalEl && sumModalEl.classList.contains("active")) {
+            generateFullSummaryData();
+            renderSummaryUI();
+            populateDayPdfSelector("sumDayPdfSelect");
+          }
+        }
+      }, function(err) {
+        console.warn("Schedule listener warning:", err);
+      });
+    }
+
+    var SINHALA_MONTHS = [
+      "ජනවාරි", "පෙබරවාරි", "මාර්තු", "අප්‍රේල්",
+      "මැයි", "ජූනි", "ජූලි", "අගෝස්තු",
+      "සැප්තැම්බර්", "ඔක්තෝම්බර්", "නොවැම්බර්", "දෙසැම්බර්"
+    ];
+    var SINHALA_WEEKDAYS = [
+      "ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා",
+      "බ්රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"
+    ];
+
+    function parseIsoDateToLocalParts(yyyyMmDd) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(yyyyMmDd || "").trim());
+      if (!m) return null;
+      var yyyy = parseInt(m[1], 10);
+      var mm = parseInt(m[2], 10);
+      var ddNum = parseInt(m[3], 10);
+      var dObj = new Date(yyyy, mm - 1, ddNum);
+      if (dObj.getFullYear() !== yyyy || dObj.getMonth() !== (mm - 1) || dObj.getDate() !== ddNum) {
+        return null;
+      }
+      var weekdayIdx = dObj.getDay();
+      var sinhalaMonth = SINHALA_MONTHS[mm - 1];
+      var dd = ("0" + ddNum).slice(-2);
+      var sinhalaWeekday = SINHALA_WEEKDAYS[weekdayIdx];
+      var dateLabel = sinhalaMonth + " " + dd + " වන " + sinhalaWeekday + " " + yyyy;
+      return {
+        isoDate: m[1] + "-" + m[2] + "-" + m[3],
+        yyyy: String(yyyy),
+        mm: m[2],
+        dd: dd,
+        monthIndex: mm - 1,
+        sinhalaMonth: sinhalaMonth,
+        weekdayIndex: weekdayIdx,
+        sinhalaWeekday: sinhalaWeekday,
+        dateLabel: dateLabel,
+        headerLabel: "දිනය : " + dateLabel
+      };
+    }
+
+    function formatSinhalaDayHeader(yyyyMmDd) {
+      var parts = parseIsoDateToLocalParts(yyyyMmDd);
+      return parts ? parts.headerLabel : "";
     }
 
     function formatDateToISO(dateStr) {
       if (!dateStr) return "";
-      var trimmed = String(dateStr).trim();
+      if (typeof dateStr === "object") {
+        if (dateStr.isoDate && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.isoDate)) return dateStr.isoDate;
+        dateStr = dateStr.date || "";
+      }
+      var trimmed = String(dateStr).replace(/^දිනය\s*:\s*/, "").trim();
       if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
 
-      var months = {
-        "ජනවාරි": "01", "පෙබරවාරි": "02", "මාර්තු": "03", "අප්‍රේල්": "04",
-        "මැයි": "05", "ජූනි": "06", "ජූලි": "07", "අගෝස්තු": "08",
-        "සැප්තැම්බර්": "09", "ඔක්තෝම්බර්": "10", "නොවැම්බර්": "11", "දෙසැම්බර්": "12"
-      };
-
       var mVal = "01";
-      for (var mName in months) {
-        if (trimmed.indexOf(mName) !== -1) {
-          mVal = months[mName];
+      for (var i = 0; i < SINHALA_MONTHS.length; i++) {
+        if (trimmed.indexOf(SINHALA_MONTHS[i]) !== -1) {
+          mVal = ("0" + (i + 1)).slice(-2);
           break;
         }
       }
 
       var yMatch = trimmed.match(/20\d\d/);
       var yVal = yMatch ? yMatch[0] : "2026";
+      var withoutYear = yMatch ? trimmed.replace(yMatch[0], " ") : trimmed;
 
-      var dMatch = trimmed.match(/(\d{1,2})/);
+      var dMatch = withoutYear.match(/(\d{1,2})/);
       var dVal = dMatch ? ("0" + dMatch[1]).slice(-2) : "01";
 
       return yVal + "-" + mVal + "-" + dVal;
@@ -2659,8 +3110,11 @@
       }) || null;
     }
 
-    function isUnder18Person(name) {
+    function isUnder18Person(name, booking) {
       if (!name) return false;
+      if (booking && typeof booking.under18 === "boolean") {
+        return booking.under18;
+      }
       var m = getMemberByName(name);
       return !!(m && m.under18);
     }
@@ -3046,6 +3500,8 @@
       var mNames = { sep: "2026 සැප්තැම්බර්", nov: "2026 නොවැම්බර්", oct: "2026 ඔක්තෝම්බර්" };
       var lbl = document.getElementById("reportMonthLabel");
       if (lbl) lbl.textContent = (mNames[currentMonth] || "") + " මාසික වාර්තාව";
+
+      populateDayPdfSelector("repDayPdfSelect");
 
       var rSep = document.getElementById("repTabSep");
       var rNov = document.getElementById("repTabNov");
@@ -3437,10 +3893,24 @@
       return rosterStore[currentMonth];
     }
 
-    function persistActiveData(msg, quiet) {
+    function syncScheduleMonthToFirestore(monthKey) {
+      if (!db || !monthKey || !rosterStore[monthKey]) return Promise.resolve();
+      return db.collection("schedule").doc(monthKey).set({
+        month: monthKey,
+        days: rosterStore[monthKey],
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(function(e) {
+        console.warn("Firestore schedule sync warning:", e);
+      });
+    }
+
+    function persistActiveData(msg, quiet, syncFirestoreSchedule) {
       try {
         localStorage.setItem(STORE_KEY + currentMonth, JSON.stringify(getActiveData()));
       } catch(e) {}
+      if (syncFirestoreSchedule && db) {
+        syncScheduleMonthToFirestore(currentMonth);
+      }
       if (!quiet && msg) {
         showToast(msg);
       }
@@ -3471,42 +3941,217 @@
       }
     }
 
-    function updateParticipant(dayIndex, slotIndex, pIndex, val) {
+    function assignParticipantToSlot(dayIndex, slotIndex, pIndex, val, explicitMember) {
       var active = getActiveData();
-      var text = val.trim();
+      var text = String(val || "").trim();
       if (text === "-") text = "";
-      if (active[dayIndex] && active[dayIndex].slots[slotIndex]) {
-        var old = active[dayIndex].slots[slotIndex].participants[pIndex] || "";
-        if (old !== text) {
-          var day = active[dayIndex];
-          var slot = day.slots[slotIndex];
-          slot.participants[pIndex] = text;
-          persistActiveData("නම සුරැකිණි: " + (text || "හිස් කරන ලදී"), false);
-          
-          // Optimistically reset local liveBookings slot if person changed
-          var isoDate = formatDateToISO(day.date);
-          var docId = makeBookingDocId(isoDate, slot.time, pIndex);
-          if (text) {
-            var matchedPhone = getPhoneForPerson(text, null);
-            var optData = {
-              name: text,
-              phone: matchedPhone || "",
-              eventDate: isoDate,
-              displayDate: day.date,
-              eventTime: slot.time,
-              status: "Waiting",
-              sentCount: 0,
-              lastSentAt: null
-            };
-            liveBookings[docId] = optData;
-            liveBookings[makeCompositeBookingKey(isoDate, slot.time, text)] = optData;
-          }
-          renderCurrentMonth();
+      if (!active[dayIndex] || !active[dayIndex].slots[slotIndex]) return;
 
-          // Sync with Firestore bookings if db is available
-          if (db && text) {
-            syncSlotToFirestore(day, slot, pIndex, text);
-          }
+      var day = active[dayIndex];
+      var slot = day.slots[slotIndex];
+      var old = (slot.participants[pIndex] || "").trim();
+      var personChanged = normalizeSinhalaForMatch(old) !== normalizeSinhalaForMatch(text);
+      if (!personChanged && !explicitMember && old === text) return;
+
+      slot.participants[pIndex] = text;
+      persistActiveData(text ? ("සාමාජිකයා යාවත්කාලීන විය: " + text) : "සාමාජික ස්ථානය හිස් කරන ලදී", false);
+
+      var isoDate = formatDateToISO(day.date);
+      var docId = makeBookingDocId(isoDate, slot.time, pIndex);
+
+      if (!text) {
+        delete liveBookings[docId];
+        renderCurrentMonth();
+        if (db) {
+          db.collection("bookings").doc(docId).delete().catch(function(e) {
+            console.warn("Firestore clear slot warning:", e);
+          });
+        }
+        return;
+      }
+
+      var matchedMember = explicitMember || getMemberByName(text);
+      var resolvedPhone = formatWhatsAppPhone(
+        (matchedMember && matchedMember.phone) ? matchedMember.phone : getPhoneForPerson(text, null)
+      );
+      var isUnder18 = !!(matchedMember && matchedMember.under18);
+
+      if (resolvedPhone) {
+        liveContacts[text] = resolvedPhone;
+      }
+
+      var existingBooking = liveBookings[docId] || getBookingForSlot(day, slot, pIndex, text);
+      var samePersonInBooking = !personChanged && existingBooking && existingBooking.name &&
+        normalizeSinhalaForMatch(existingBooking.name) === normalizeSinhalaForMatch(text);
+
+      var optData = {
+        name: text,
+        phone: resolvedPhone || "",
+        under18: isUnder18,
+        eventDate: isoDate,
+        displayDate: day.date,
+        eventTime: slot.time,
+        location: day.location || "වැලිගම්පිටිය හන්දිය",
+        days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+        slotMonth: currentMonth,
+        slotDayIndex: dayIndex,
+        slotIndex: slotIndex,
+        participantIndex: pIndex,
+        status: samePersonInBooking ? (existingBooking.status || "Waiting") : "Waiting",
+        sentCount: samePersonInBooking && typeof existingBooking.sentCount === "number" ? existingBooking.sentCount : 0,
+        lastSentAt: samePersonInBooking ? (existingBooking.lastSentAt || null) : null
+      };
+      liveBookings[docId] = Object.assign({}, samePersonInBooking ? existingBooking : {}, optData);
+      liveBookings[makeCompositeBookingKey(isoDate, slot.time, text)] = liveBookings[docId];
+      renderCurrentMonth();
+
+      if (db) {
+        syncSlotToFirestore(day, slot, pIndex, text, resolvedPhone, isUnder18, dayIndex, slotIndex);
+      }
+    }
+
+    function updateParticipant(dayIndex, slotIndex, pIndex, val) {
+      assignParticipantToSlot(dayIndex, slotIndex, pIndex, val, null);
+    }
+
+    /* Searchable Member Picker Controller */
+    var memberPickerTarget = { dayIndex: -1, slotIndex: -1, pIndex: -1, currentName: "" };
+    var memberPickerFiltered = [];
+
+    function openMemberPickerModal(dayIndex, slotIndex, pIndex) {
+      var active = getActiveData();
+      var day = active[dayIndex];
+      var slot = day && day.slots && day.slots[slotIndex];
+      if (!day || !slot) return;
+
+      var currentName = (slot.participants[pIndex] || "").trim();
+      memberPickerTarget = {
+        dayIndex: dayIndex,
+        slotIndex: slotIndex,
+        pIndex: pIndex,
+        currentName: currentName
+      };
+
+      var bannerEl = document.getElementById("mpSlotBanner");
+      if (bannerEl) {
+        bannerEl.textContent = "📅 " + day.date + " | ⏰ " + slot.time;
+      }
+
+      var searchEl = document.getElementById("mpSearchInput");
+      if (searchEl) searchEl.value = "";
+      filterMemberPickerList("");
+      openModal("memberPickerModal");
+      setTimeout(function() {
+        if (searchEl && typeof searchEl.focus === "function") searchEl.focus();
+      }, 40);
+    }
+
+    function filterMemberPickerList(query) {
+      var rawQuery = String(query || "").trim();
+      var normQuery = normalizeSinhalaForMatch(rawQuery);
+      var lowerQuery = rawQuery.toLowerCase();
+      var digitsQuery = rawQuery.replace(/\D/g, "");
+
+      var matches = liveMembers.filter(function(m) {
+        if (!rawQuery) return true;
+        var normName = normalizeSinhalaForMatch(m.name);
+        var rawName = String(m.name || "").toLowerCase();
+        var ph = formatWhatsAppPhone(m.phone || "");
+        var idMatch = String(m.id || "") === rawQuery;
+        return normName.indexOf(normQuery) !== -1 ||
+          rawName.indexOf(lowerQuery) !== -1 ||
+          (digitsQuery && ph.indexOf(digitsQuery) !== -1) ||
+          idMatch;
+      });
+
+      memberPickerFiltered = matches;
+      var listEl = document.getElementById("mpMemberList");
+      if (listEl) {
+        if (matches.length === 0) {
+          listEl.innerHTML = '<div style="padding:16px; text-align:center; color:#64748b; font-size:0.85rem;">ගැලපෙන සාමාජිකයෙක් නොමැත — පහළ බොත්තමෙන් Custom Name ලෙස යොදන්න.</div>';
+        } else {
+          var currentNorm = normalizeSinhalaForMatch(memberPickerTarget.currentName);
+          var listHtml = "";
+          matches.forEach(function(m, idx) {
+            var isSelected = currentNorm && normalizeSinhalaForMatch(m.name) === currentNorm;
+            var ph = formatWhatsAppPhone(m.phone || "");
+            var u18Html = m.under18 ? '<span class="badge-u18">🧒 U18</span>' : '';
+            var phHtml = ph
+              ? ('<span class="mp-phone-tag">📞 ' + escapeHtml(ph) + '</span>')
+              : '<span class="mp-phone-tag missing">No phone</span>';
+            listHtml += '<button type="button" class="mp-item' + (isSelected ? ' active' : '') + '" onclick="selectMemberFromPicker(' + idx + ')">' +
+              '<span class="mp-item-left"><span class="mp-id-tag">#' + escapeHtml(m.id) + '</span><span>' + escapeHtml(m.name) + '</span>' + u18Html + '</span>' +
+              phHtml +
+              '</button>';
+          });
+          listEl.innerHTML = listHtml;
+        }
+      }
+
+      var customBtn = document.getElementById("btnMpUseCustom");
+      if (customBtn) {
+        if (rawQuery) {
+          var exact = getMemberByName(rawQuery);
+          var exactPhone = exact && exact.phone ? formatWhatsAppPhone(exact.phone) : "";
+          customBtn.style.display = "block";
+          customBtn.textContent = exact
+            ? ('✅ "' + rawQuery + '" තෝරන්න' + (exactPhone ? (' (📞 ' + exactPhone + ')') : ''))
+            : ('➕ "' + rawQuery + '" (Custom Name ලෙස යොදන්න)');
+        } else {
+          customBtn.style.display = "none";
+        }
+      }
+    }
+
+    function selectMemberFromPicker(filteredIndex) {
+      var member = memberPickerFiltered[filteredIndex];
+      if (!member) return;
+      assignParticipantToSlot(
+        memberPickerTarget.dayIndex,
+        memberPickerTarget.slotIndex,
+        memberPickerTarget.pIndex,
+        member.name,
+        member
+      );
+      closeModal("memberPickerModal");
+    }
+
+    function applyCustomMemberFromPicker() {
+      var searchEl = document.getElementById("mpSearchInput");
+      var typedName = (searchEl ? searchEl.value : "").trim();
+      if (!typedName) return;
+      assignParticipantToSlot(
+        memberPickerTarget.dayIndex,
+        memberPickerTarget.slotIndex,
+        memberPickerTarget.pIndex,
+        typedName,
+        null
+      );
+      closeModal("memberPickerModal");
+    }
+
+    function clearSlotFromPicker() {
+      assignParticipantToSlot(
+        memberPickerTarget.dayIndex,
+        memberPickerTarget.slotIndex,
+        memberPickerTarget.pIndex,
+        "",
+        null
+      );
+      closeModal("memberPickerModal");
+    }
+
+    function handleMemberPickerKeydown(evt) {
+      if (evt.key === "Escape") {
+        closeModal("memberPickerModal");
+        return;
+      }
+      if (evt.key === "Enter") {
+        evt.preventDefault();
+        if (memberPickerFiltered.length === 1) {
+          selectMemberFromPicker(0);
+        } else {
+          applyCustomMemberFromPicker();
         }
       }
     }
@@ -3523,6 +4168,199 @@
       }
     }
 
+    var datePickerState = { dayIndex: -1, selectedIso: "", viewYear: 2026, viewMonthIndex: 10 };
+
+    function openDatePickerModal(dayIndex) {
+      var active = getActiveData();
+      var day = active[dayIndex];
+      if (!day) return;
+
+      var initialIso = (day.isoDate && /^\d{4}-\d{2}-\d{2}$/.test(day.isoDate))
+        ? day.isoDate
+        : (formatDateToISO(day.date) || "");
+      var parts = parseIsoDateToLocalParts(initialIso);
+      if (!parts) {
+        var now = new Date();
+        initialIso = now.getFullYear() + "-" + ("0" + (now.getMonth() + 1)).slice(-2) + "-" + ("0" + now.getDate()).slice(-2);
+        parts = parseIsoDateToLocalParts(initialIso);
+      }
+
+      datePickerState = {
+        dayIndex: dayIndex,
+        selectedIso: parts.isoDate,
+        viewYear: parseInt(parts.yyyy, 10),
+        viewMonthIndex: parts.monthIndex
+      };
+
+      syncDatePickerUi();
+      openModal("datePickerModal");
+    }
+
+    function syncDatePickerUi() {
+      var inputEl = document.getElementById("dpNativeDateInput");
+      if (inputEl) inputEl.value = datePickerState.selectedIso;
+
+      var previewEl = document.getElementById("dpFormattedPreview");
+      if (previewEl) {
+        previewEl.textContent = formatSinhalaDayHeader(datePickerState.selectedIso) || "දිනය : -";
+      }
+
+      renderDpCalendarGrid();
+    }
+
+    function changeDpCalMonth(delta) {
+      var nextM = datePickerState.viewMonthIndex + delta;
+      var nextY = datePickerState.viewYear;
+      if (nextM < 0) {
+        nextM = 11;
+        nextY--;
+      } else if (nextM > 11) {
+        nextM = 0;
+        nextY++;
+      }
+      datePickerState.viewMonthIndex = nextM;
+      datePickerState.viewYear = nextY;
+      renderDpCalendarGrid();
+    }
+
+    function selectDpDate(yyyyMmDd) {
+      var parts = parseIsoDateToLocalParts(yyyyMmDd);
+      if (!parts) return;
+      datePickerState.selectedIso = parts.isoDate;
+      datePickerState.viewYear = parseInt(parts.yyyy, 10);
+      datePickerState.viewMonthIndex = parts.monthIndex;
+      syncDatePickerUi();
+    }
+
+    function handleNativeDatePickerChange(yyyyMmDd) {
+      selectDpDate(yyyyMmDd);
+    }
+
+    function renderDpCalendarGrid() {
+      var titleEl = document.getElementById("dpCalMonthTitle");
+      if (titleEl) {
+        titleEl.textContent = (SINHALA_MONTHS[datePickerState.viewMonthIndex] || "") + " " + datePickerState.viewYear;
+      }
+
+      var gridEl = document.getElementById("dpCalGrid");
+      if (!gridEl) return;
+
+      var dowLabels = ["ඉරි", "සඳු", "අඟ", "බදා", "බ්රහ", "සිකු", "සෙන"];
+      var html = "";
+      dowLabels.forEach(function(d) {
+        html += '<div class="dp-cal-dow">' + d + '</div>';
+      });
+
+      var y = datePickerState.viewYear;
+      var m = datePickerState.viewMonthIndex;
+      var firstDow = new Date(y, m, 1).getDay();
+      var daysInMonth = new Date(y, m + 1, 0).getDate();
+
+      var now = new Date();
+      var todayIso = now.getFullYear() + "-" + ("0" + (now.getMonth() + 1)).slice(-2) + "-" + ("0" + now.getDate()).slice(-2);
+
+      for (var i = 0; i < firstDow; i++) {
+        html += '<div class="dp-cal-day empty"></div>';
+      }
+      for (var dNum = 1; dNum <= daysInMonth; dNum++) {
+        var iso = y + "-" + ("0" + (m + 1)).slice(-2) + "-" + ("0" + dNum).slice(-2);
+        var cls = "dp-cal-day";
+        if (iso === datePickerState.selectedIso) cls += " selected";
+        if (iso === todayIso) cls += " today";
+        html += '<button type="button" class="' + cls + '" onclick="selectDpDate(\'' + iso + '\')">' + ("0" + dNum).slice(-2) + '</button>';
+      }
+
+      gridEl.innerHTML = html;
+    }
+
+    function migrateDayBookingsToNewDate(day, oldIsoDate, newParts) {
+      if (!day || !Array.isArray(day.slots) || !newParts) return;
+
+      day.slots.forEach(function(slot, sIdx) {
+        for (var pIdx = 0; pIdx < 3; pIdx++) {
+          var personName = (slot.participants && slot.participants[pIdx]) ? slot.participants[pIdx].trim() : "";
+          if (!personName) continue;
+
+          var oldDocId = makeBookingDocId(oldIsoDate || newParts.isoDate, slot.time, pIdx);
+          var existing = liveBookings[oldDocId] || getBookingForSlot(day, slot, pIdx, personName) || {};
+          var newDocId = makeBookingDocId(newParts.isoDate, slot.time, pIdx);
+
+          var migratedData = {
+            name: personName,
+            phone: existing.phone || getPhoneForPerson(personName, null) || "",
+            under18: (typeof existing.under18 === "boolean") ? existing.under18 : isUnder18Person(personName, null),
+            eventDate: newParts.isoDate,
+            displayDate: newParts.dateLabel,
+            eventTime: slot.time,
+            location: day.location || "වැලිගම්පිටිය හන්දිය",
+            days: newParts.sinhalaWeekday,
+            slotMonth: currentMonth,
+            slotDayIndex: datePickerState.dayIndex,
+            slotIndex: sIdx,
+            participantIndex: pIdx,
+            status: existing.status || "Waiting",
+            sentCount: (typeof existing.sentCount === "number") ? existing.sentCount : 0,
+            retryCount: (typeof existing.retryCount === "number") ? existing.retryCount : 0,
+            declineReason: existing.declineReason || "",
+            swapDetails: existing.swapDetails || "",
+            dayBeforeReminderSent: false,
+            dayBeforeReminderSentAt: null,
+            summarySent: !!existing.summarySent
+          };
+
+          if (oldDocId !== newDocId) {
+            delete liveBookings[oldDocId];
+          }
+          liveBookings[newDocId] = Object.assign({}, migratedData, { lastSentAt: existing.lastSentAt || null });
+          liveBookings[makeCompositeBookingKey(newParts.isoDate, slot.time, personName)] = liveBookings[newDocId];
+
+          if (db) {
+            var payload = Object.assign({}, migratedData, {
+              lastSentAt: existing.lastSentAt || null,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            db.collection("bookings").doc(newDocId).set(payload, { merge: true }).catch(function(e) {
+              console.warn("Firestore date migrate booking warning:", e);
+            });
+            if (oldDocId !== newDocId) {
+              db.collection("bookings").doc(oldDocId).delete().catch(function() {});
+            }
+          }
+        }
+      });
+    }
+
+    function applyPickedDateToDay() {
+      var active = getActiveData();
+      var day = active[datePickerState.dayIndex];
+      var parts = parseIsoDateToLocalParts(datePickerState.selectedIso);
+      if (!day || !parts) return;
+
+      var oldIsoDate = (day.isoDate && /^\d{4}-\d{2}-\d{2}$/.test(day.isoDate))
+        ? day.isoDate
+        : formatDateToISO(day.date);
+
+      day.date = parts.dateLabel;
+      day.isoDate = parts.isoDate;
+      day.type = (parts.weekdayIndex === 6) ? "sat" : "sun";
+
+      migrateDayBookingsToNewDate(day, oldIsoDate, parts);
+      persistActiveData("දිනය යාවත්කාලීන විය: " + parts.dateLabel, false, true);
+
+      closeModal("datePickerModal");
+      renderCurrentMonth();
+      populateDayPdfSelector("repDayPdfSelect");
+      populateDayPdfSelector("sumDayPdfSelect");
+      if (typeof currentAppView !== "undefined" && currentAppView === "report") {
+        renderReportView();
+      }
+      var sumModalEl = document.getElementById("summaryModal");
+      if (sumModalEl && sumModalEl.classList.contains("active")) {
+        generateFullSummaryData();
+        renderSummaryUI();
+      }
+    }
+
     function updateDayDate(dayIndex, val) {
       var active = getActiveData();
       var text = val.trim().replace(/^දිනය\s*:\s*/, "");
@@ -3530,7 +4368,8 @@
         var old = active[dayIndex].date;
         if (old !== text && text) {
           active[dayIndex].date = text;
-          persistActiveData("දිනය සුරැකිණි!", false);
+          active[dayIndex].isoDate = formatDateToISO(text);
+          persistActiveData("දිනය සුරැකිණි!", false, true);
         }
       }
     }
@@ -3622,7 +4461,7 @@
         // Header Bar
         var dayTargets = collectValidTargetsForDay(day, dayIndex);
         html += '<div class="card-header-bar">';
-        html += '<span class="date-heading-text" contenteditable="true" spellcheck="false" onblur="updateDayDate(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit date">දිනය : ' + escapeHtml(day.date) + '</span>';
+        html += '<span class="date-heading-text" onclick="openDatePickerModal(' + dayIndex + ')" title="දිනය වෙනස් කිරීමට ඔබන්න">📅 දිනය : ' + escapeHtml(day.date) + '</span>';
 
         html += '<div class="header-right">';
         html += '<span class="loc-text" contenteditable="true" spellcheck="false" onblur="updateDayLocation(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit location">ස්ථානය : ' + escapeHtml(day.location) + '</span>';
@@ -3684,9 +4523,10 @@
               html += '<td>';
               html += '<div class="participant-cell-wrap">';
               
-              // Name (Inline Editable)
-              var u18Badge = (pName && isUnder18Person(pName)) ? '<span class="badge-u18" title="Under 18 (වයස අවුරුදු 18ට අඩු)">🧒 U18</span>' : '';
-              html += '<span class="name-editable ' + (!pName ? 'empty' : '') + '" contenteditable="true" spellcheck="false" onblur="updateParticipant(' + dayIndex + ',' + slotIndex + ',' + pIdx + ', this.textContent)" onkeydown="handleCellKey(event, this)">' + (pName ? escapeHtml(pName) : '-') + '</span>' + u18Badge;
+              // Clickable Name -> Opens Searchable Member Picker (101 Members)
+              var u18Badge = (pName && isUnder18Person(pName, booking)) ? '<span class="badge-u18" title="Under 18 (වයස අවුරුදු 18ට අඩු)">🧒 U18</span>' : '';
+              var displaySlotName = pName ? escapeHtml(pName) : '+ තෝරන්න';
+              html += '<span class="name-editable ' + (!pName ? 'empty' : '') + '" onclick="openMemberPickerModal(' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Click to select or change member from the 101 Members list">' + displaySlotName + '</span>' + u18Badge;
 
               // If person is assigned, render Live Status badge + WhatsApp badge
               if (pName) {
@@ -3772,19 +4612,20 @@
     /* ========================================================
        FIRESTORE WRITES & 1-CLICK OFFICIAL WHATSAPP SENDER
        ======================================================== */
-    function syncSlotToFirestore(day, slot, pIndex, personName) {
+    function syncSlotToFirestore(day, slot, pIndex, personName, explicitPhone, explicitUnder18, dayIdx, slotIdx) {
       if (!db || !personName) return;
       var isoDate = formatDateToISO(day.date);
       var docId = makeBookingDocId(isoDate, slot.time, pIndex);
-      var currentPhone = getPhoneForPerson(personName, null);
-      
+      var currentPhone = explicitPhone || getPhoneForPerson(personName, null);
+      var isUnder18 = (typeof explicitUnder18 === "boolean") ? explicitUnder18 : isUnder18Person(personName, null);
+
       var docRef = db.collection("bookings").doc(docId);
       docRef.get().then(function(doc) {
         var existing = doc.exists ? doc.data() : {};
         var isSamePerson = existing.name && normalizeSinhalaForMatch(existing.name) === normalizeSinhalaForMatch(personName);
         var isSameDate = !existing.eventDate || existing.eventDate === isoDate;
         var status = isSamePerson ? (existing.status || "Waiting") : "Waiting";
-        var phone = isSamePerson ? (currentPhone || existing.phone || "") : (currentPhone || "");
+        var phone = currentPhone || (isSamePerson ? (existing.phone || "") : "");
         var lastSentAt = isSamePerson ? (existing.lastSentAt || null) : null;
         var sentCount = isSamePerson ? (existing.sentCount || 0) : 0;
         var retryCount = isSamePerson ? (existing.retryCount || 0) : 0;
@@ -3796,11 +4637,16 @@
         docRef.set({
           name: personName,
           phone: phone,
+          under18: isUnder18,
           eventDate: isoDate,
           displayDate: day.date,
           eventTime: slot.time,
           location: day.location || "වැලිගම්පිටිය හන්දිය",
           days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+          slotMonth: currentMonth,
+          slotDayIndex: (typeof dayIdx === "number") ? dayIdx : null,
+          slotIndex: (typeof slotIdx === "number") ? slotIdx : null,
+          participantIndex: pIndex,
           status: status,
           sentCount: sentCount,
           retryCount: retryCount,
@@ -3878,20 +4724,22 @@
     }
 
     function buildSinhalaReminderMessage(personName, displayDate, eventTime, location, bookingId, slotMeta) {
+      var cleanName = String(personName || "සහෝදරයා/සහෝදරිය").trim();
+      var dateLabel = String(displayDate || "නියමිත දිනය").trim();
+      var timeSlot = String(eventTime || "නියමිත වේලාව").trim();
+      var locLabel = String(location || "වැලිගම්පිටිය හන්දිය").trim();
       var resolvedBookingId = bookingId || ((displayDate && eventTime) ? makeBookingDocId(displayDate, eventTime, 0) : "");
       var confirmUrl = buildRsvpConfirmUrl(resolvedBookingId, slotMeta);
-      var msg = "ආයුබෝවන් " + personName + "! 👋\n" +
-        "පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n" +
-        "📅 දිනය: *" + (displayDate || "නියමිත දිනය") + "*\n" +
-        "⏰ වේලාව: *" + (eventTime || "නියමිත වේලාව") + "*\n" +
-        "📍 ස්ථානය: *" + (location || "වැලිගම්පිටිය හන්දිය") + "*\n" +
-        "🏛️ සභාව: *බටගම සභාව*\n\n" +
-        "ඔබ මේ සඳහා සහභාගි වන්නේද?\n" +
-        "• පැමිණෙන්නේ නම්: *හරි* (හෝ *yes*)\n" +
-        "• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n" +
-        "• මාරු කරන්නේ නම්: *swap [විස්තර]*";
+
+      var msg = "ආයුබෝවන් *" + cleanName + "*! 👋\n\n" +
+        "බටගම සභාවේ *Cart එකේ* ඔයාට වෙන් කරලා තියෙන වාරය ගැන පොඩි මතක් කිරීමක් කරන්නයි මේ පණිවිඩය එවන්නේ:\n\n" +
+        "📅 *දිනය:* " + dateLabel + "\n" +
+        "⏰ *වේලාව:* " + timeSlot + "\n" +
+        "📍 *ස්ථානය:* " + locLabel + "\n" +
+        "⛪ *සභාව:* බටගම සභාව\n\n" +
+        "ඔයාට මේ වෙලාවට Cart එකට එන්න පුළුවන්ද කියලා තහවුරු කරන්න පහළ තියෙන ලින්ක් එක ඔබලා *OK* (හෝ *NO*) තෝරන්න 👇";
       if (confirmUrl) {
-        msg += "\n\nපැමිණීම තහවුරු කිරීමට (OK / NO) පහත ලින්ක් එක ඔබන්න:\n" + confirmUrl;
+        msg += "\n" + confirmUrl;
       }
       return msg;
     }
@@ -3982,17 +4830,22 @@
         return false;
       }
 
+      dispatchSlotWhatsAppSend(day, slot, pIndex, personName, formattedPhone, currentMonth, dayIndex, slotIndex, false);
+      return true;
+    }
+
+    function dispatchSlotWhatsAppSend(day, slot, pIndex, personName, formattedPhone, monthKey, dayIndex, slotIndex, quietToast) {
       var bookingId = makeBookingDocId(day.date, slot.time, pIndex);
-      var slotMeta = { m: currentMonth, d: dayIndex, s: slotIndex, p: pIndex };
+      var slotMeta = { m: monthKey, d: dayIndex, s: slotIndex, p: pIndex };
       var waUrl = buildOfficialWhatsAppUrl(formattedPhone, personName, day.date, slot.time, day.location, bookingId, slotMeta);
       window.open(waUrl, "_blank", "noopener,noreferrer");
       markBookingAsSent(day, slot, pIndex, personName, formattedPhone, {
-        slotMonth: currentMonth,
+        slotMonth: monthKey,
         slotDayIndex: dayIndex,
         slotIndex: slotIndex,
         participantIndex: pIndex
-      });
-      return true;
+      }, quietToast ? { quietToast: true } : undefined);
+      return waUrl;
     }
 
     function sendDirectWhatsAppForSlot(evt, dayIndex, slotIndex, pIndex) {
@@ -4005,18 +4858,21 @@
     }
 
     /* ========================================================
-       DAY-LEVEL 1-CLICK SEND ALL & 1-BY-1 PENDING HELPER
+       CROSS-DEVICE DAY SEND QUEUE MODAL & 1-BY-1 PENDING HELPER
        ======================================================== */
     var batchPendingQueue = [];
     var batchPendingIndex = 0;
     var batchPendingMonth = "";
-    var dayBatchTimers = [];
 
-    function clearDayBatchTimers() {
-      while (dayBatchTimers.length > 0) {
-        clearTimeout(dayBatchTimers.pop());
-      }
-    }
+    var dayQueueState = {
+      month: "",
+      dayIndex: -1,
+      date: "",
+      location: "",
+      items: [],
+      index: 0,
+      completed: false
+    };
 
     function collectValidTargetsForDay(day, dayIndex) {
       var all = [];
@@ -4070,53 +4926,110 @@
         return 0;
       }
 
-      clearDayBatchTimers();
+      dayQueueState = {
+        month: currentMonth,
+        dayIndex: dayIndex,
+        date: day.date,
+        location: day.location || "වැලිගම්පිටිය හන්දිය",
+        items: targets.slice(),
+        index: 0,
+        completed: false
+      };
 
-      var prepared = targets.map(function(t) {
-        var bookingId = makeBookingDocId(day.date, t.time, t.pIndex);
-        var slotMeta = { m: currentMonth, d: dayIndex, s: t.slotIndex, p: t.pIndex };
-        return {
-          slot: day.slots[t.slotIndex],
-          slotIndex: t.slotIndex,
-          pIndex: t.pIndex,
-          personName: t.personName,
-          phone: t.phone,
-          waUrl: buildOfficialWhatsAppUrl(t.phone, t.personName, day.date, t.time, day.location, bookingId, slotMeta)
-        };
-      });
+      renderDayQueueModal();
+      openModal("dayQueueModal");
+      if (dayTargets.missingPhoneCount > 0) {
+        showToast("දුරකථන අංක නැති " + dayTargets.missingPhoneCount + " දෙනෙකු මඟ හරින ලදි.");
+      }
+      return dayQueueState.items.length;
+    }
 
-      var bannerMsg = "Opening WhatsApp for " + prepared.length + " members on " + day.date +
-        "... (Allow pop-ups in browser if prompted)";
-      showToast(bannerMsg, Math.max(5000, prepared.length * 1200 + 1200));
+    function renderDayQueueModal() {
+      var total = dayQueueState.items.length;
+      if (!total) return;
 
-      window.open(prepared[0].waUrl, "_blank", "noopener,noreferrer");
+      var isDone = dayQueueState.completed || dayQueueState.index >= total;
+      var pos = isDone ? total : (dayQueueState.index + 1);
+      var pct = isDone ? 100 : Math.round((dayQueueState.index / total) * 100);
 
-      prepared.forEach(function(item) {
-        markBookingAsSent(day, item.slot, item.pIndex, item.personName, item.phone, {
-          slotMonth: currentMonth,
-          slotDayIndex: dayIndex,
-          slotIndex: item.slotIndex,
-          participantIndex: item.pIndex
-        }, {
-          skipRender: true,
-          quietToast: true
-        });
-      });
-      renderCurrentMonth();
+      document.getElementById("dqDayDate").textContent = "📅 " + (dayQueueState.date || "-");
+      document.getElementById("dqDayLocation").textContent = "📍 " + (dayQueueState.location || "-");
+      document.getElementById("dqProgressBadge").textContent = pos + " / " + total;
+      document.getElementById("dqProgressFill").style.width = pct + "%";
 
-      for (var i = 1; i < prepared.length; i++) {
-        (function(item, delayMs) {
-          var tid = setTimeout(function() {
-            var pop = window.open(item.waUrl, "_blank", "noopener,noreferrer");
-            if (!pop) {
-              showToast("⚠️ Browser pop-ups blocked! Allow pop-ups in the address bar and try again.", 6000);
-            }
-          }, delayMs);
-          dayBatchTimers.push(tid);
-        })(prepared[i], i * 1200);
+      var memberCard = document.getElementById("dqMemberCard");
+      var doneBox = document.getElementById("dqDoneBox");
+      var btnSend = document.getElementById("btnDayQueueSend");
+      var btnSkip = document.getElementById("btnDayQueueSkip");
+
+      if (isDone) {
+        if (memberCard) memberCard.style.display = "none";
+        if (doneBox) doneBox.style.display = "block";
+        if (btnSend) btnSend.style.display = "none";
+        if (btnSkip) btnSkip.style.display = "none";
+        return;
       }
 
-      return prepared.length;
+      var item = dayQueueState.items[dayQueueState.index];
+      if (memberCard) memberCard.style.display = "flex";
+      if (doneBox) doneBox.style.display = "none";
+      if (btnSend) {
+        btnSend.style.display = "flex";
+        btnSend.textContent = "📲 Open WhatsApp & Next (" + pos + "/" + total + ")";
+      }
+      if (btnSkip) btnSkip.style.display = "inline-flex";
+
+      document.getElementById("dqMemberName").textContent = item.personName;
+      document.getElementById("dqMemberSlot").textContent = "⏰ " + (item.time || "-");
+      document.getElementById("dqMemberPhone").textContent = "📞 +" + item.phone;
+    }
+
+    function advanceDayQueueAfterAction(showCompleteToast) {
+      dayQueueState.index++;
+      if (dayQueueState.index >= dayQueueState.items.length) {
+        dayQueueState.completed = true;
+        renderDayQueueModal();
+        if (showCompleteToast) {
+          showToast("✅ සියලු දෙනාටම යවා අවසන්! (All Sent)", 3500);
+        }
+      } else {
+        renderDayQueueModal();
+      }
+    }
+
+    function sendCurrentDayQueueMember() {
+      if (dayQueueState.completed || dayQueueState.index >= dayQueueState.items.length) {
+        closeDayQueueModal();
+        return false;
+      }
+
+      var item = dayQueueState.items[dayQueueState.index];
+      var monthDays = rosterStore[dayQueueState.month] || [];
+      var day = monthDays[dayQueueState.dayIndex];
+      var slot = day && day.slots && day.slots[item.slotIndex];
+      if (!day || !slot) {
+        advanceDayQueueAfterAction(false);
+        return false;
+      }
+
+      dispatchSlotWhatsAppSend(day, slot, item.pIndex, item.personName, item.phone, dayQueueState.month, dayQueueState.dayIndex, item.slotIndex, true);
+      advanceDayQueueAfterAction(true);
+      return true;
+    }
+
+    function skipCurrentDayQueueMember() {
+      if (dayQueueState.completed || dayQueueState.index >= dayQueueState.items.length) {
+        closeDayQueueModal();
+        return;
+      }
+      advanceDayQueueAfterAction(false);
+    }
+
+    function closeDayQueueModal() {
+      closeModal("dayQueueModal");
+      dayQueueState.items = [];
+      dayQueueState.index = 0;
+      dayQueueState.completed = false;
     }
 
     function getPendingWaitingSlots() {
@@ -4383,6 +5296,7 @@
     function openSummaryModal() {
       generateFullSummaryData();
       renderSummaryUI();
+      populateDayPdfSelector("sumDayPdfSelect");
       loadSavedDailyReports();
       openModal("summaryModal");
     }
@@ -4590,6 +5504,408 @@
       if (!txt) return;
       navigator.clipboard.writeText(txt).then(function() {
         showToast("පසුගිය වාර්තාව Copy විය!");
+      });
+    }
+
+    /* ========================================================
+       SUDHARA SILVA 1-CLICK DAILY & MONTHLY PDF REPORT + SHARE
+       ======================================================== */
+    function getMonthDisplayLabel(monthKey) {
+      var map = {
+        sep: "2026 සැප්තැම්බර්",
+        nov: "2026 නොවැම්බර්",
+        oct: "2026 ඔක්තෝම්බර්"
+      };
+      if (map[monthKey]) return map[monthKey];
+      var heroEl = document.getElementById("heroMonthLabel");
+      return (heroEl && heroEl.textContent) ? heroEl.textContent.replace(" මාසික කාලසටහන", "").trim() : "2026 නොවැම්බර්";
+    }
+
+    function populateDayPdfSelector(selectId) {
+      var sel = document.getElementById(selectId);
+      if (!sel) return;
+      var active = getActiveData() || [];
+      var prevVal = sel.value;
+      var html = "";
+      active.forEach(function(day, idx) {
+        if (!day || (day.note && day.note.trim())) return;
+        html += '<option value="' + idx + '">' + escapeHtml(day.date) + '</option>';
+      });
+      if (!html) {
+        html = '<option value="0">දිනයන් නැත</option>';
+      }
+      sel.innerHTML = html;
+      if (prevVal && sel.querySelector && sel.querySelector('option[value="' + prevVal + '"]')) {
+        sel.value = prevVal;
+      }
+    }
+
+    function getSudharaPhoneNumber() {
+      var targets = ["සුධාර සිල්වා", "සුධාර", "sudhara"];
+      var list = (Array.isArray(liveMembers) && liveMembers.length > 0) ? liveMembers : INITIAL_MEMBERS;
+      for (var i = 0; i < targets.length; i++) {
+        var needle = normalizeSinhalaForMatch(targets[i]);
+        var match = list.find(function(m) {
+          var norm = normalizeSinhalaForMatch(m.name);
+          var rawLower = String(m.name || "").toLowerCase();
+          return norm === needle || norm.indexOf(needle) !== -1 || rawLower.indexOf("sudhara") !== -1;
+        });
+        if (match && match.phone) {
+          var clean = formatWhatsAppPhone(match.phone);
+          if (clean) return clean;
+        }
+      }
+      return getLatestMemberPhone("සුධාර සිල්වා") || "";
+    }
+
+    function mapStatusToPdfMeta(status, booking) {
+      var norm = String(status || "Waiting");
+      if (norm === "Confirmed") {
+        return { kind: "confirmed", pill: "✅ Confirmed", extra: "" };
+      }
+      if (norm === "Declined") {
+        var reason = (booking && booking.declineReason) ? (" (" + booking.declineReason + ")") : "";
+        return { kind: "declined", pill: "❌ Declined", extra: reason };
+      }
+      if (norm === "Swapped") {
+        var swapTxt = (booking && booking.swapDetails) ? (" (" + booking.swapDetails + ")") : "";
+        return { kind: "swapped", pill: "🔄 Swapped", extra: swapTxt };
+      }
+      return { kind: "pending", pill: "⏳ Pending", extra: (norm === "sent" ? " (Sent)" : "") };
+    }
+
+    function collectPdfReportData(daysList) {
+      var stats = {
+        totalDays: 0,
+        totalSlots: 0,
+        confirmed: 0,
+        swapped: 0,
+        declined: 0,
+        pending: 0
+      };
+      var daySections = [];
+      var dutyMap = {};
+
+      (daysList || []).forEach(function(day) {
+        if (!day) return;
+        stats.totalDays++;
+
+        if (day.note && day.note.trim()) {
+          var specialCount = Array.isArray(day.slots) ? day.slots.length : 1;
+          stats.totalSlots += specialCount;
+          daySections.push({
+            date: day.date,
+            location: day.location || "වැලිගම්පිටිය හන්දිය",
+            note: day.note.trim(),
+            rows: []
+          });
+          return;
+        }
+
+        var rows = [];
+        (day.slots || []).forEach(function(slot) {
+          for (var pIdx = 0; pIdx < 3; pIdx++) {
+            var pName = (slot.participants && slot.participants[pIdx]) ? slot.participants[pIdx].trim() : "";
+            if (!pName) continue;
+
+            stats.totalSlots++;
+            var booking = getBookingForSlot(day, slot, pIdx, pName);
+            var phone = formatWhatsAppPhone(getPhoneForPerson(pName, booking));
+            var status = (booking && booking.status) ? booking.status : "Waiting";
+            var stMeta = mapStatusToPdfMeta(status, booking);
+            stats[stMeta.kind]++;
+
+            rows.push({
+              time: slot.time || "",
+              name: pName,
+              phone: phone || "-",
+              kind: stMeta.kind,
+              pillText: stMeta.pill + stMeta.extra
+            });
+
+            var mKey = normalizeSinhalaForMatch(pName) || pName;
+            if (!dutyMap[mKey]) {
+              dutyMap[mKey] = {
+                name: pName,
+                total: 0,
+                confirmed: 0,
+                swapped: 0,
+                declined: 0,
+                pending: 0
+              };
+            }
+            dutyMap[mKey].total++;
+            dutyMap[mKey][stMeta.kind]++;
+          }
+        });
+
+        daySections.push({
+          date: day.date,
+          location: day.location || "වැලිගම්පිටිය හන්දිය",
+          note: "",
+          rows: rows
+        });
+      });
+
+      var memberDuties = Object.keys(dutyMap).map(function(k) {
+        return dutyMap[k];
+      });
+      memberDuties.sort(function(a, b) {
+        if (b.total !== a.total) return b.total - a.total;
+        if (b.confirmed !== a.confirmed) return b.confirmed - a.confirmed;
+        return a.name.localeCompare(b.name);
+      });
+
+      return {
+        stats: stats,
+        daySections: daySections,
+        memberDuties: memberDuties
+      };
+    }
+
+    function buildSudharaReportPdfElement(opts) {
+      var data = collectPdfReportData(opts.daysList);
+      var s = data.stats;
+      var generatedStr = new Date().toLocaleString("en-GB", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      var cssText =
+        "* { box-sizing: border-box; }" +
+        ".pdf-doc-root { width: 750px; padding: 14px 16px; background: #ffffff; color: #0f172a; font-family: 'Noto Sans Sinhala', 'Plus Jakarta Sans', Arial, sans-serif; font-size: 12px; line-height: 1.4; }" +
+        ".pdf-avoid-break { page-break-inside: avoid; break-inside: avoid; }" +
+        ".pdf-hdr { background: #0f172a; color: #ffffff; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }" +
+        ".pdf-hdr h1 { margin: 0 0 4px 0; font-size: 18px; font-weight: 800; color: #ffffff; }" +
+        ".pdf-hdr-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #cbd5e1; }" +
+        ".pdf-hdr-pill { background: #fef08a; color: #0f172a; padding: 2px 10px; border-radius: 12px; font-weight: 800; }" +
+        ".pdf-stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 14px; }" +
+        ".pdf-stat-box { border-radius: 6px; padding: 8px 6px; text-align: center; border: 1px solid #cbd5e1; background: #f8fafc; }" +
+        ".pdf-stat-box .n { font-size: 17px; font-weight: 800; line-height: 1.1; }" +
+        ".pdf-stat-box .l { font-size: 9.5px; font-weight: 700; margin-top: 2px; }" +
+        ".pdf-stat-confirmed { background: #dcfce7; border-color: #86efac; color: #15803d; }" +
+        ".pdf-stat-swapped { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }" +
+        ".pdf-stat-declined { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }" +
+        ".pdf-stat-pending { background: #fef3c7; border-color: #fde047; color: #92400e; }" +
+        ".pdf-day-section { border: 1.5px solid #334155; border-radius: 7px; overflow: hidden; margin-bottom: 12px; background: #ffffff; }" +
+        ".pdf-day-hdr { background: #fef08a; border-bottom: 1.5px solid #334155; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 12.5px; color: #0f172a; }" +
+        ".pdf-tbl { width: 100%; border-collapse: collapse; }" +
+        ".pdf-tbl th { background: #f1f5f9; color: #0f172a; font-size: 10.5px; font-weight: 800; padding: 6px 8px; border-bottom: 1px solid #cbd5e1; text-align: left; }" +
+        ".pdf-tbl td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; vertical-align: middle; }" +
+        ".pdf-tbl tr { page-break-inside: avoid; break-inside: avoid; }" +
+        ".pdf-tbl tr:last-child td { border-bottom: none; }" +
+        ".pdf-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; border: 1px solid transparent; }" +
+        ".pdf-pill-confirmed { background: #dcfce7; color: #15803d; border-color: #86efac; }" +
+        ".pdf-pill-declined { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }" +
+        ".pdf-pill-swapped { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }" +
+        ".pdf-pill-pending { background: #fef3c7; color: #92400e; border-color: #fde047; }" +
+        ".pdf-duty-card { border: 1.5px solid #0f172a; border-radius: 7px; overflow: hidden; margin-top: 14px; }" +
+        ".pdf-duty-hdr { background: #0f172a; color: #ffffff; padding: 8px 12px; font-weight: 800; font-size: 12px; }" +
+        ".pdf-foot { margin-top: 10px; text-align: center; font-size: 10px; color: #64748b; }";
+
+      var html = '<style>' + cssText + '</style>';
+      html += '<div class="pdf-doc-root">';
+
+      // Header Banner
+      html += '<div class="pdf-hdr pdf-avoid-break">';
+      html += '<h1>' + escapeHtml(opts.headerTitle) + '</h1>';
+      html += '<div class="pdf-hdr-meta">';
+      html += '<span class="pdf-hdr-pill">📅 ' + escapeHtml(opts.monthLabel) + '</span>';
+      html += '<span>Generated: ' + escapeHtml(generatedStr) + '</span>';
+      html += '</div></div>';
+
+      // Summary Cards
+      html += '<div class="pdf-stats-grid pdf-avoid-break">';
+      html += '<div class="pdf-stat-box"><div class="n">' + s.totalDays + '</div><div class="l">Total Days</div></div>';
+      html += '<div class="pdf-stat-box"><div class="n">' + s.totalSlots + '</div><div class="l">Total Slots</div></div>';
+      html += '<div class="pdf-stat-box pdf-stat-confirmed"><div class="n">' + s.confirmed + '</div><div class="l">Confirmed (✅ OK)</div></div>';
+      html += '<div class="pdf-stat-box pdf-stat-swapped"><div class="n">' + s.swapped + '</div><div class="l">Swapped (🔄)</div></div>';
+      html += '<div class="pdf-stat-box pdf-stat-declined"><div class="n">' + s.declined + '</div><div class="l">Declined (❌ NO)</div></div>';
+      html += '<div class="pdf-stat-box pdf-stat-pending"><div class="n">' + s.pending + '</div><div class="l">Pending (⏳)</div></div>';
+      html += '</div>';
+
+      // Day-by-Day Attendance Tables
+      data.daySections.forEach(function(sec) {
+        html += '<div class="pdf-day-section pdf-avoid-break">';
+        html += '<div class="pdf-day-hdr"><span>📅 ' + escapeHtml(sec.date) + '</span><span>📍 ' + escapeHtml(sec.location) + '</span></div>';
+
+        if (sec.note) {
+          html += '<div style="padding:10px 12px; font-weight:700; color:#334155; text-align:center;">🏛️ ' + escapeHtml(sec.note) + '</div>';
+        } else if (sec.rows.length === 0) {
+          html += '<div style="padding:10px 12px; color:#64748b; text-align:center;">සාමාජිකයින් නම් කර නොමැත.</div>';
+        } else {
+          html += '<table class="pdf-tbl">';
+          html += '<thead><tr><th style="width:23%;">වේලාව (Time Slot)</th><th style="width:31%;">නම (Member Name)</th><th style="width:21%;">දුරකථන අංකය (Phone)</th><th style="width:25%;">තත්වය (Status)</th></tr></thead><tbody>';
+          sec.rows.forEach(function(r) {
+            html += '<tr>';
+            html += '<td><strong>' + escapeHtml(r.time) + '</strong></td>';
+            html += '<td><strong>' + escapeHtml(r.name) + '</strong></td>';
+            html += '<td>' + escapeHtml(r.phone) + '</td>';
+            html += '<td><span class="pdf-pill pdf-pill-' + r.kind + '">' + escapeHtml(r.pillText) + '</span></td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+        html += '</div>';
+      });
+
+      // Member Duty Count Summary Section
+      if (opts.includeMemberSummary && data.memberDuties.length > 0) {
+        html += '<div class="pdf-duty-card pdf-avoid-break">';
+        html += '<div class="pdf-duty-hdr">👥 සාමාජික සේවා වාර සාරාංශය (Member Duty Count Summary — ' + data.memberDuties.length + ' Members)</div>';
+        html += '<table class="pdf-tbl">';
+        html += '<thead><tr><th style="width:8%;">#</th><th style="width:36%;">සාමාජිකයාගේ නම (Member)</th><th style="width:14%;">මුළු වාර</th><th style="width:14%;">✅ OK</th><th style="width:10%;">🔄 Swap</th><th style="width:9%;">❌ NO</th><th style="width:9%;">⏳ Wait</th></tr></thead><tbody>';
+        data.memberDuties.forEach(function(md, i) {
+          html += '<tr>';
+          html += '<td>' + (i + 1) + '</td>';
+          html += '<td><strong>' + escapeHtml(md.name) + '</strong></td>';
+          html += '<td><strong>' + md.total + '</strong></td>';
+          html += '<td style="color:#15803d; font-weight:700;">' + md.confirmed + '</td>';
+          html += '<td style="color:#0369a1;">' + md.swapped + '</td>';
+          html += '<td style="color:#b91c1c;">' + md.declined + '</td>';
+          html += '<td style="color:#92400e;">' + md.pending + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      html += '<div class="pdf-foot">පොදු සේවය - බටගම සභාව | Generated automatically by Batagama Cart Roster</div>';
+      html += '</div>';
+
+      var wrapper = document.createElement("div");
+      wrapper.style.position = "fixed";
+      wrapper.style.left = "-99999px";
+      wrapper.style.top = "0";
+      wrapper.style.width = "760px";
+      wrapper.style.background = "#ffffff";
+      wrapper.style.zIndex = "-1";
+      wrapper.innerHTML = html;
+      return wrapper;
+    }
+
+    async function exportAndShareReportPdf(opts) {
+      var sudharaPhone = getSudharaPhoneNumber();
+      if (!sudharaPhone) {
+        showToast("⚠️ සුධාර සිල්වාගේ WhatsApp දුරකථන අංකය සාමාජික ලැයිස්තුවේ සොයාගත නොහැක.");
+        return { mode: "error" };
+      }
+
+      if (typeof html2pdf === "undefined") {
+        showToast("⚠️ PDF පුස්තකාලය (html2pdf.js) පූරණය වී නොමැත. අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.");
+        return { mode: "error" };
+      }
+
+      showToast("⏳ PDF වාර්තාව සකස් කරමින් පවතී...", 4000);
+      var wrapper = buildSudharaReportPdfElement(opts);
+      document.body.appendChild(wrapper);
+      var rootEl = wrapper.querySelector ? wrapper.querySelector(".pdf-doc-root") : wrapper;
+
+      try {
+        var pdfOpt = {
+          margin: [10, 8, 10, 8],
+          filename: opts.filename,
+          image: { type: "jpeg", quality: 0.96 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+        };
+
+        var pdfBlob = await html2pdf().set(pdfOpt).from(rootEl || wrapper).outputPdf("blob");
+
+        var pdfFile = (typeof File !== "undefined")
+          ? new File([pdfBlob], opts.filename, { type: "application/pdf" })
+          : null;
+
+        if (pdfFile && typeof navigator !== "undefined" && typeof navigator.canShare === "function" &&
+            navigator.canShare({ files: [pdfFile] }) && typeof navigator.share === "function") {
+          try {
+            await navigator.share({
+              files: [pdfFile],
+              title: opts.shareTitle,
+              text: opts.shareText
+            });
+            showToast("✅ PDF වාර්තාව WhatsApp වෙත Share කරන ලදී!", 4500);
+            return { mode: "share", filename: opts.filename };
+          } catch (shareErr) {
+            if (shareErr && shareErr.name === "AbortError") {
+              showToast("Share කිරීම අවලංගු කරන ලදි.");
+              return { mode: "cancelled", filename: opts.filename };
+            }
+          }
+        }
+
+        // Desktop / fallback auto-download + launch WhatsApp chat for Sudhara Silva
+        if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+          var blobUrl = URL.createObjectURL(pdfBlob);
+          var dl = document.createElement("a");
+          dl.href = blobUrl;
+          dl.download = opts.filename;
+          document.body.appendChild(dl);
+          dl.click();
+          document.body.removeChild(dl);
+          setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 2500);
+        }
+
+        showToast(opts.downloadToast, 6000);
+        var waUrl = "https://wa.me/" + sudharaPhone + "?text=" + encodeURIComponent(opts.whatsappCaption);
+        window.open(waUrl, "_blank", "noopener,noreferrer");
+        return { mode: "download", filename: opts.filename, waUrl: waUrl };
+      } catch (err) {
+        console.error("Sudhara PDF generation error:", err);
+        showToast("⚠️ PDF සෑදීමේදී දෝෂයක් ඇතිවිය: " + (err && err.message ? err.message : "Error"));
+        return { mode: "error" };
+      } finally {
+        if (wrapper.parentNode) {
+          wrapper.parentNode.removeChild(wrapper);
+        }
+      }
+    }
+
+    function generateSudharaMonthlyReportPdf() {
+      var monthKey = currentMonth || "nov";
+      var monthLabel = getMonthDisplayLabel(monthKey);
+      var daysList = getActiveData() || [];
+      var filename = "Batagama_Cart_Monthly_Report_" + monthKey + ".pdf";
+
+      return exportAndShareReportPdf({
+        headerTitle: "පොදු සේවය (CART) - මාසික සේවා වාර්තාව | බටගම සභාව",
+        monthLabel: monthLabel,
+        daysList: daysList,
+        includeMemberSummary: true,
+        filename: filename,
+        shareTitle: "මාසික Cart සේවා වාර්තාව",
+        shareText: "සුධාර සිල්වා - බටගම සභාව මාසික Cart සේවා වාර්තාව",
+        downloadToast: "📄 මාසික PDF වාර්තාව Download විය — සුධාර සිල්වාගේ WhatsApp chat එකට Attach කර යවන්න",
+        whatsappCaption: "ආයුබෝවන් සුධාර, බටගම සභාවේ " + monthLabel + " මාසික Cart සේවා PDF වාර්තාව මෙයට අමුණා ඇත. 📊📄"
+      });
+    }
+
+    function generateSudharaDailyReportPdf(dayIndexVal) {
+      var days = getActiveData() || [];
+      var idx = parseInt(dayIndexVal, 10);
+      if (isNaN(idx) || idx < 0 || idx >= days.length) idx = 0;
+      var targetDay = days[idx];
+      if (!targetDay) {
+        showToast("දෛනික වාර්තාව සඳහා දිනයක් හමු නොවීය.");
+        return Promise.resolve({ mode: "error" });
+      }
+
+      var isoSlug = (formatDateToISO(targetDay.date) || ("day_" + (idx + 1))).replace(/[^\w-]/g, "_");
+      var filename = "Batagama_Cart_Daily_Report_" + isoSlug + ".pdf";
+
+      return exportAndShareReportPdf({
+        headerTitle: "පොදු සේවය (CART) - දෛනික සේවා වාර්තාව | බටගම සභාව",
+        monthLabel: targetDay.date,
+        daysList: [targetDay],
+        includeMemberSummary: false,
+        filename: filename,
+        shareTitle: "දෛනික Cart සේවා වාර්තාව",
+        shareText: "සුධාර සිල්වා - බටගම සභාව (" + targetDay.date + ") Cart සේවා වාර්තාව",
+        downloadToast: "📄 දෛනික PDF වාර්තාව Download විය — සුධාර සිල්වාගේ WhatsApp chat එකට Attach කර යවන්න",
+        whatsappCaption: "ආයුබෝවන් සුධාර, බටගම සභාවේ " + targetDay.date + " දින Cart සේවා PDF වාර්තාව මෙයට අමුණා ඇත. 📄"
       });
     }
 
