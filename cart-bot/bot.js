@@ -12,7 +12,10 @@ const {
   makeCacheableSignalKeyStore,
   delay,
   Browsers,
-  proto
+  proto,
+  jidDecode,
+  jidEncode,
+  jidNormalizedUser
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
@@ -230,17 +233,57 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
+async function collectFreshDeviceJids(targetJid) {
+  const sessionJids = [targetJid];
+  if (typeof sock?.getUSyncDevices !== 'function') return sessionJids;
+
+  const decodedTarget = jidDecode(targetJid);
+  if (!decodedTarget || !decodedTarget.user) return sessionJids;
+
+  const meRaw = sock.user?.id || sock.authState?.creds?.me?.id || '';
+  const meJid = meRaw ? jidNormalizedUser(meRaw) : '';
+  const meDecoded = meJid ? jidDecode(meJid) : null;
+  const queryJids = meJid && decodedTarget.user !== meDecoded?.user ? [meJid, targetJid] : [targetJid];
+
+  const fetchedDevices = await sock.getUSyncDevices(queryJids, false, true).catch(() => []);
+  if (!Array.isArray(fetchedDevices)) return sessionJids;
+
+  const isTargetLid = decodedTarget.server === 'lid';
+  const meLidUser = sock.authState?.creds?.me?.lid ? jidDecode(sock.authState.creds.me.lid)?.user : null;
+
+  for (const dev of fetchedDevices) {
+    if (!dev || !dev.user) continue;
+    let devJid = null;
+    if (dev.user === decodedTarget.user) {
+      devJid = jidEncode(dev.user, decodedTarget.server, dev.device || undefined);
+    } else if (meDecoded && dev.user === meDecoded.user) {
+      const meUser = isTargetLid ? (meLidUser || dev.user) : dev.user;
+      const meServer = isTargetLid ? 'lid' : 's.whatsapp.net';
+      devJid = jidEncode(meUser, meServer, dev.device || undefined);
+    }
+    if (devJid && !sessionJids.includes(devJid)) {
+      sessionJids.push(devJid);
+    }
+  }
+  return sessionJids;
+}
+
 async function sendWhatsAppMessage(jid, content) {
   if (!sock) throw new Error('WhatsApp socket not initialized');
-  // Force Baileys to sync the recipient's presence and fetch a fresh Signal pre-key bundle
+  const isGroup = typeof jid === 'string' && jid.endsWith('@g.us');
+
+  // Force Baileys to sync presence, fresh device list, and Signal pre-key sessions before sending
   await sock.presenceSubscribe(jid).catch(() => {});
   await sock.sendPresenceUpdate('composing', jid).catch(() => {});
-  await new Promise((r) => setTimeout(r, 700));
-  if (typeof sock.assertSessions === 'function' && typeof jid === 'string' && !jid.endsWith('@g.us')) {
-    await sock.assertSessions([jid], true).catch(() => {});
+  if (!isGroup && typeof jid === 'string') {
+    const sessionJids = await collectFreshDeviceJids(jid);
+    if (typeof sock.assertSessions === 'function') {
+      await sock.assertSessions(sessionJids, true).catch(() => {});
+    }
   }
+  await new Promise((r) => setTimeout(r, 800));
 
-  const sentMsg = await sock.sendMessage(jid, content, { useUserDevicesCache: false });
+  const sentMsg = await sock.sendMessage(jid, content);
   await sock.sendPresenceUpdate('paused', jid).catch(() => {});
   if (sentMsg && sentMsg.key && sentMsg.key.id && sentMsg.message) {
     cacheSentMessage(sentMsg.key.id, sentMsg.message);
