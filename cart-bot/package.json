@@ -8,8 +8,8 @@
     "dev": "node bot.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.12",
     "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.12",
     "firebase-admin": "^12.0.0",
     "node-cron": "^3.0.3",
     "pino": "^9.0.0",
@@ -29,4 +29,3 @@
   "author": "Batagama Public Service Team",
   "license": "ISC"
 }
-
