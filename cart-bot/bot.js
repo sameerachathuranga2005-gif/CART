@@ -11,7 +11,8 @@ const {
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   delay,
-  Browsers
+  Browsers,
+  proto
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
@@ -51,6 +52,8 @@ let latestQrDataUrl = null;
 const sendingDocIds = new Set();
 const sentMessagesCache = new Map();
 const MAX_SENT_CACHE_SIZE = 500;
+const SENT_CACHE_PATH = path.join(AUTH_DIR, 'sent_messages_cache.json');
+let saveSentCacheTimer = null;
 
 const msgRetryCounterMap = new Map();
 const msgRetryCounterCache = {
@@ -66,13 +69,78 @@ const msgRetryCounterCache = {
   flushAll: () => msgRetryCounterMap.clear()
 };
 
+function serializeMessagePayload(messagePayload) {
+  if (!messagePayload) return null;
+  try {
+    const protoMsg = proto.Message.fromObject(messagePayload);
+    return proto.Message.toObject(protoMsg, { defaults: false, bytes: String });
+  } catch (_) {
+    return messagePayload;
+  }
+}
+
+function hydrateMessageForRetry(cachedPayload) {
+  if (!cachedPayload) return undefined;
+  try {
+    return proto.Message.fromObject(cachedPayload);
+  } catch (_) {
+    return cachedPayload;
+  }
+}
+
+function scheduleSaveSentMessagesCache() {
+  if (saveSentCacheTimer) clearTimeout(saveSentCacheTimer);
+  saveSentCacheTimer = setTimeout(() => {
+    saveSentCacheTimer = null;
+    try {
+      if (!fs.existsSync(AUTH_DIR)) return;
+      const tmpPath = `${SENT_CACHE_PATH}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(Array.from(sentMessagesCache.entries())), 'utf8');
+      fs.renameSync(tmpPath, SENT_CACHE_PATH);
+    } catch (err) {
+      console.warn('⚠️ Failed to persist sent_messages_cache.json:', err.message);
+    }
+  }, 400);
+  if (typeof saveSentCacheTimer.unref === 'function') {
+    saveSentCacheTimer.unref();
+  }
+}
+
+function loadSentMessagesCache() {
+  try {
+    if (!fs.existsSync(SENT_CACHE_PATH)) return;
+    const entries = JSON.parse(fs.readFileSync(SENT_CACHE_PATH, 'utf8'));
+    if (!Array.isArray(entries)) return;
+    for (const item of entries.slice(-MAX_SENT_CACHE_SIZE)) {
+      if (Array.isArray(item) && item[0] && item[1]) {
+        sentMessagesCache.set(item[0], item[1]);
+      }
+    }
+    pushLog(`💾 Loaded ${sentMessagesCache.size} serialized message(s) for getMessage retries.`);
+  } catch (err) {
+    console.warn('⚠️ Failed to load sent_messages_cache.json:', err.message);
+  }
+}
+
+function clearSentMessagesCache() {
+  if (saveSentCacheTimer) {
+    clearTimeout(saveSentCacheTimer);
+    saveSentCacheTimer = null;
+  }
+  sentMessagesCache.clear();
+  msgRetryCounterCache.flushAll();
+}
+
 function cacheSentMessage(messageId, messagePayload) {
   if (!messageId || !messagePayload) return;
-  sentMessagesCache.set(messageId, messagePayload);
+  const serialized = serializeMessagePayload(messagePayload);
+  if (!serialized) return;
+  sentMessagesCache.set(messageId, serialized);
   if (sentMessagesCache.size > MAX_SENT_CACHE_SIZE) {
     const oldestKey = sentMessagesCache.keys().next().value;
     sentMessagesCache.delete(oldestKey);
   }
+  scheduleSaveSentMessagesCache();
 }
 
 const botState = {
@@ -164,13 +232,13 @@ function formatDateToISO(dateObj) {
 
 async function sendWhatsAppMessage(jid, content) {
   if (!sock) throw new Error('WhatsApp socket not initialized');
-  // Force Baileys to sync the recipient's Signal pre-keys and device list before encrypting
+  // Force Baileys to sync the recipient's presence and fetch a fresh Signal pre-key bundle
   await sock.presenceSubscribe(jid).catch(() => {});
   await sock.sendPresenceUpdate('composing', jid).catch(() => {});
-  if (typeof sock.assertSessions === 'function' && typeof jid === 'string' && !jid.endsWith('@g.us')) {
-    await sock.assertSessions([jid], false).catch(() => {});
-  }
   await new Promise((r) => setTimeout(r, 700));
+  if (typeof sock.assertSessions === 'function' && typeof jid === 'string' && !jid.endsWith('@g.us')) {
+    await sock.assertSessions([jid], true).catch(() => {});
+  }
 
   const sentMsg = await sock.sendMessage(jid, content, { useUserDevicesCache: false });
   await sock.sendPresenceUpdate('paused', jid).catch(() => {});
@@ -287,6 +355,7 @@ function startHttpKeepAliveServer() {
         sock = null;
       }
 
+      clearSentMessagesCache();
       try {
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
       } catch (rmErr) {
@@ -760,6 +829,9 @@ async function startBot() {
   console.log('======================================================\n');
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  if (sentMessagesCache.size === 0) {
+    loadSentMessagesCache();
+  }
   const { version, isLatest } = await fetchLatestBaileysVersion();
   const baileysLogger = pino({ level: 'silent' });
   console.log(`Using Baileys v${version.join('.')}, isLatest: ${isLatest}`);
@@ -782,9 +854,10 @@ async function startBot() {
       if (!id) return undefined;
       const cached = sentMessagesCache.get(id);
       if (cached) {
-        pushLog(`🔁 [Retry Cache Hit] Served message ${id} for ${key.remoteJid || 'recipient'}`);
-        return cached;
+        pushLog(`🔁 [Retry Cache Hit] Served serialized message ${id} for ${key.remoteJid || 'recipient'}`);
+        return hydrateMessageForRetry(cached);
       }
+      pushLog(`⚠️ [Retry Cache Miss] Message ${id} not found for ${key.remoteJid || 'recipient'}`);
       return undefined;
     }
   });
@@ -836,6 +909,7 @@ async function startBot() {
         latestQr = null;
         latestQrDataUrl = null;
         botState.qrUpdatedAt = null;
+        clearSentMessagesCache();
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (rmErr) {
