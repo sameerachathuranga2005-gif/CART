@@ -18,6 +18,7 @@ const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const QRCode = require('qrcode');
 
 // Modular firebase-admin imports (avoids admin.credential.cert undefined errors)
 const { initializeApp, cert } = require('firebase-admin/app');
@@ -30,8 +31,7 @@ const AUTH_DIR = path.resolve(__dirname, 'auth_info_baileys');
 const SERVICE_ACCOUNT_PATH = path.resolve(__dirname, 'serviceAccountKey.json');
 const PID_LOCK_PATH = path.resolve(__dirname, 'bot.pid');
 
-// Pairing phone and admin phone number (Sri Lanka format: 947XXXXXXXX)
-const PAIRING_PHONE = (process.env.PAIRING_PHONE || '94701206001').replace(/\D/g, '');
+// Admin phone number (Sri Lanka format: 947XXXXXXXX)
 const ADMIN_PHONE = (process.env.ADMIN_PHONE || '94701206001').replace(/\D/g, '');
 const HTTP_PORT = parseInt(process.env.PORT || '8100', 10);
 const HTTP_HOST = process.env.IP || '0.0.0.0';
@@ -45,6 +45,8 @@ let cronJobsStarted = false;
 let sweeperInterval = null;
 let membersCache = [];
 let contactsCache = {};
+let latestQr = null;
+let latestQrDataUrl = null;
 const sendingDocIds = new Set();
 const sentMessagesStore = new Map();
 
@@ -52,8 +54,8 @@ const botState = {
   pid: process.pid,
   connectionStatus: 'DISCONNECTED', // 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'
   botJid: null,
-  pairingCode: null,
-  lastPairingError: null,
+  qrUpdatedAt: null,
+  lastQrError: null,
   lastDisconnectCode: null,
   lastDisconnectReason: null,
   conflictBackoffUntil: null,
@@ -166,11 +168,94 @@ function escapeHtml(str) {
 }
 
 function startHttpKeepAliveServer() {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const rawUrl = req.url || '/';
     const reqPath = rawUrl.split('?')[0].replace(/\/+$/, '') || '/';
     const wantsJson = rawUrl.includes('format=json') ||
       (req.headers.accept && req.headers.accept.includes('application/json'));
+
+    if (reqPath === '/qr.png' || reqPath === '/bot/qr.png') {
+      if (!latestQr) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end('No active QR code (bot is already connected or initializing).');
+        return;
+      }
+      try {
+        const pngBuffer = await QRCode.toBuffer(latestQr, {
+          type: 'png',
+          width: 340,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
+        res.writeHead(200, {
+          'Content-Type': 'image/png',
+          'Content-Length': pngBuffer.length,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        });
+        res.end(pngBuffer);
+      } catch (qrErr) {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Failed to render QR PNG: ' + qrErr.message);
+      }
+      return;
+    }
+
+    if (reqPath === '/reset-auth' || reqPath === '/bot/reset-auth') {
+      pushLog('🔄 Auth reset requested via HTTP (/reset-auth). Clearing session and generating fresh QR...');
+      latestQr = null;
+      latestQrDataUrl = null;
+      botState.qrUpdatedAt = null;
+      botState.connectionStatus = 'DISCONNECTED';
+      botState.botJid = null;
+      botState.lastDisconnectReason = 'Manual auth reset requested';
+
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      isReconnecting = false;
+
+      if (sock) {
+        try { sock.ev.removeAllListeners(); } catch (_) {}
+        try { sock.end(undefined); } catch (_) {}
+        sock = null;
+      }
+
+      try {
+        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      } catch (rmErr) {
+        console.error('Error clearing auth dir on reset-auth:', rmErr.message);
+      }
+
+      if (wantsJson) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ ok: true, message: 'Auth session cleared. Generating new QR code...' }));
+      } else {
+        const redirectHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="3;url=status">
+  <title>Resetting WhatsApp Auth...</title>
+  <style>body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}.box{background:#fff;border:1.5px solid #0f172a;border-radius:10px;padding:24px 28px;text-align:center;max-width:420px;}</style>
+</head>
+<body>
+  <div class="box">
+    <h2 style="margin-top:0;">🔄 Generating New QR Code...</h2>
+    <p>Auth session cleared. Redirecting back to Status Dashboard in 3 seconds...</p>
+    <p><a href="status" style="color:#0369a1;font-weight:700;">Go to /status now</a></p>
+  </div>
+</body>
+</html>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(redirectHtml);
+      }
+
+      setTimeout(() => {
+        startBot().catch(err => pushLog(`❌ Restart after reset-auth failed: ${err.message}`));
+      }, 600);
+      return;
+    }
 
     if (reqPath === '/status' || reqPath === '/bot/status') {
       const slNow = getColomboNowParts(0);
@@ -185,9 +270,9 @@ function startHttpKeepAliveServer() {
         pid: botState.pid,
         connectionStatus: botState.connectionStatus,
         botJid: botState.botJid,
-        pairingPhone: PAIRING_PHONE,
-        pairingCode: botState.pairingCode,
-        lastPairingError: botState.lastPairingError,
+        hasQr: !!latestQr,
+        qrUpdatedAt: botState.qrUpdatedAt,
+        lastQrError: botState.lastQrError,
         lastDisconnectCode: botState.lastDisconnectCode,
         lastDisconnectReason: botState.lastDisconnectReason,
         conflictBackoffUntil: botState.conflictBackoffUntil,
@@ -218,13 +303,17 @@ function startHttpKeepAliveServer() {
 
       const isConn = botState.connectionStatus === 'CONNECTED';
       const badgeColor = isConn ? '#16a34a' : (botState.connectionStatus === 'CONNECTING' ? '#d97706' : '#dc2626');
-      const pairingBlock = (!isConn && botState.pairingCode)
-        ? `<div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;padding:16px;margin:16px 0;text-align:center;">
-             <div style="font-weight:700;color:#92400e;margin-bottom:6px;">🔑 WHATSAPP PAIRING CODE (+${escapeHtml(PAIRING_PHONE)})</div>
-             <div style="font-size:2rem;font-weight:900;letter-spacing:4px;font-family:monospace;color:#0f172a;">${escapeHtml(botState.pairingCode)}</div>
-             <div style="font-size:0.85rem;color:#78350f;margin-top:8px;">WhatsApp &gt; Linked Devices &gt; Link a device &gt; Link with phone number instead</div>
+      const qrImageSrc = latestQrDataUrl || 'qr.png';
+      const qrBlock = (!isConn && latestQr)
+        ? `<div style="background:#ffffff;border:2px solid #0f172a;border-radius:12px;padding:20px;margin:16px 0;text-align:center;">
+             <div style="font-weight:800;font-size:1.05rem;color:#0f172a;margin-bottom:10px;">📷 SCAN WHATSAPP QR CODE</div>
+             <img src="${qrImageSrc}" alt="WhatsApp Login QR Code" style="width:300px;height:300px;max-width:100%;border:6px solid #ffffff;box-shadow:0 2px 10px rgba(0,0,0,0.12);background:#ffffff;"/>
+             <div style="font-size:0.86rem;color:#334155;margin-top:10px;">Open WhatsApp on your phone &gt; <b>Settings / Menu</b> &gt; <b>Linked Devices</b> &gt; <b>Link a Device</b> &gt; Scan this QR code.</div>
+             <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">QR Generated: ${escapeHtml(botState.qrUpdatedAt || '')} (auto-refreshes every 10s)</div>
            </div>`
-        : '';
+        : (!isConn
+          ? `<div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px;margin:16px 0;text-align:center;color:#92400e;font-weight:700;">⏳ Waiting for WhatsApp QR code... Page will refresh automatically.</div>`
+          : '');
 
       const html = `<!DOCTYPE html>
 <html lang="en">
@@ -240,6 +329,8 @@ function startHttpKeepAliveServer() {
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin:16px 0;}
     .stat{background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:0.86rem;}
     .stat b{display:block;font-size:0.74rem;color:#64748b;text-transform:uppercase;margin-bottom:4px;}
+    .btn-reset{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;border:1.5px solid #dc2626;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:0.84rem;cursor:pointer;text-decoration:none;}
+    .btn-reset:hover{background:#fecaca;}
     pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:0.78rem;max-height:280px;}
   </style>
 </head>
@@ -247,9 +338,12 @@ function startHttpKeepAliveServer() {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <h2 style="margin:0;">🤖 Batagama CART WhatsApp Bot</h2>
-      <span class="badge">${escapeHtml(botState.connectionStatus)}</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <a href="reset-auth" class="btn-reset" onclick="return confirm('Clear current WhatsApp session and generate a fresh QR code?');">🔄 Generate New QR</a>
+        <span class="badge">${escapeHtml(botState.connectionStatus)}</span>
+      </div>
     </div>
-    ${pairingBlock}
+    ${qrBlock}
     <div class="grid">
       <div class="stat"><b>Bot JID / PID</b>${escapeHtml(botState.botJid || 'Not connected')} (PID: ${botState.pid})</div>
       <div class="stat"><b>Firestore</b>${db ? '🟢 Connected' : '🔴 Offline'}</div>
@@ -260,7 +354,7 @@ function startHttpKeepAliveServer() {
       <div class="stat"><b>45s Sweeper</b>${escapeHtml(botState.lastSweeperAt || 'Initializing...')}</div>
       <div class="stat"><b>Last Reminder Sent</b>${escapeHtml(botState.lastSentTo ? `${botState.lastSentTo} (${botState.lastSentAt})` : 'None yet')}</div>
     </div>
-    ${botState.lastPairingError ? `<p style="color:#dc2626;font-size:0.85rem;"><b>Last Pairing Error:</b> ${escapeHtml(botState.lastPairingError)}</p>` : ''}
+    ${botState.lastQrError ? `<p style="color:#dc2626;font-size:0.85rem;"><b>Last QR Error:</b> ${escapeHtml(botState.lastQrError)}</p>` : ''}
     ${botState.lastDisconnectReason ? `<p style="color:#b45309;font-size:0.85rem;"><b>Last Disconnect (${escapeHtml(botState.lastDisconnectCode)}):</b> ${escapeHtml(botState.lastDisconnectReason)}</p>` : ''}
     <h4 style="margin:14px 0 6px;">Recent Logs</h4>
     <pre>${escapeHtml(botState.recentLogs.join('\n') || 'No logs yet.')}</pre>
@@ -573,7 +667,7 @@ async function findActiveBookingForPhone(senderPhone) {
 }
 
 /* ==========================================================================
-   WHATSAPP BOT CORE & PAIRING
+   WHATSAPP BOT CORE & QR AUTHENTICATION
    ========================================================================== */
 async function startBot() {
   if (!db) {
@@ -593,10 +687,9 @@ async function startBot() {
   }
 
   botState.connectionStatus = 'CONNECTING';
-  pushLog('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING...');
+  pushLog('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING (QR MODE)...');
   console.log('\n======================================================');
-  console.log('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING...');
-  console.log(`📱 Target Pairing Phone: +${PAIRING_PHONE}`);
+  console.log('🤖 BATAGAMA ROSTER WHATSAPP BOT STARTING (QR MODE)...');
   console.log(`👑 Admin Phone: +${ADMIN_PHONE}`);
   console.log('======================================================\n');
 
@@ -616,39 +709,29 @@ async function startBot() {
     getMessage: async (key) => (key && key.id ? sentMessagesStore.get(key.id) : undefined)
   });
 
-  // Pairing code request if not already authenticated
-  if (!sock.authState.creds.registered) {
-    pushLog(`⏳ Requesting WhatsApp Pairing Code for +${PAIRING_PHONE}...`);
-    setTimeout(async () => {
-      try {
-        const code = await sock.requestPairingCode(PAIRING_PHONE);
-        botState.pairingCode = code;
-        botState.lastPairingError = null;
-        pushLog(`🔑 WHATSAPP PAIRING CODE GENERATED: ${code}`);
-        console.log('\n======================================================');
-        console.log('🔑 WHATSAPP PAIRING CODE GENERATED:');
-        console.log(`👉 CODE: ${code}`);
-        console.log('------------------------------------------------------');
-        console.log('1. Open WhatsApp on your phone (+94701206001)');
-        console.log('2. Tap Settings (or 3 dots) > Linked Devices');
-        console.log('3. Tap "Link a device"');
-        console.log('4. Tap "Link with phone number instead"');
-        console.log(`5. Enter the pairing code above: ${code}`);
-        console.log('======================================================\n');
-      } catch (pairErr) {
-        botState.lastPairingError = pairErr.message;
-        pushLog(`❌ Failed to request pairing code: ${pairErr.message}`);
-        console.log('💡 Note: Ensure phone number is in international format without + or spaces.');
-      }
-    }, 3500);
-  }
-
   // Save auth credentials whenever updated
   sock.ev.on('creds.update', saveCreds);
 
-  // Connection status & auto-reconnect + conflict protection handling
+  // Connection status, QR Code & auto-reconnect + conflict protection handling
   sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      latestQr = qr;
+      botState.qrUpdatedAt = new Date().toISOString();
+      botState.lastQrError = null;
+      try {
+        latestQrDataUrl = await QRCode.toDataURL(qr, {
+          width: 320,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
+      } catch (qrErr) {
+        botState.lastQrError = qrErr.message;
+        latestQrDataUrl = null;
+      }
+      pushLog('📷 New WhatsApp QR Code generated! Open /bot/status to scan.');
+    }
 
     if (connection === 'close') {
       botState.connectionStatus = 'DISCONNECTED';
@@ -669,8 +752,10 @@ async function startBot() {
       pushLog(`⚠️ Connection closed. Status code: ${statusCode}. Conflict: ${isConflict}. Reconnecting: ${shouldReconnect}`);
 
       if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-        pushLog('🔒 Device logged out. Clearing auth directory to allow new pairing...');
-        botState.pairingCode = null;
+        pushLog('🔒 Device logged out. Clearing auth directory to generate new QR...');
+        latestQr = null;
+        latestQrDataUrl = null;
+        botState.qrUpdatedAt = null;
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (rmErr) {
@@ -691,10 +776,12 @@ async function startBot() {
         }, delayMs);
       }
     } else if (connection === 'open') {
+      latestQr = null;
+      latestQrDataUrl = null;
+      botState.qrUpdatedAt = null;
+      botState.lastQrError = null;
       botState.connectionStatus = 'CONNECTED';
       botState.botJid = sock.user?.id || 'Connected';
-      botState.pairingCode = null;
-      botState.lastPairingError = null;
       botState.lastDisconnectReason = null;
       botState.conflictBackoffUntil = null;
 
