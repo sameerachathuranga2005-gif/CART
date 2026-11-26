@@ -585,7 +585,8 @@
       transform: scale(1.05);
     }
 
-    .status-confirmed {
+    .status-confirmed,
+    .status-sent {
       background: #dcfce7;
       color: #15803d;
       border: 1px solid #86efac;
@@ -651,6 +652,85 @@
       background: #d1fae5;
       color: #065f46;
       border-color: #10b981;
+    }
+
+    .btn-wa-batch {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #15803d;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .btn-wa-batch:hover {
+      background: #15803d;
+    }
+    .btn-wa-batch .batch-count-pill {
+      background: rgba(255, 255, 255, 0.22);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .btn-send-day {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #14532d;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease;
+    }
+    .btn-send-day:hover {
+      background: #15803d;
+    }
+
+    .batch-send-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: #f0fdf4;
+      border: 1.5px solid #16a34a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.1);
+    }
+    .batch-send-bar.active {
+      display: flex;
+    }
+    .batch-send-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.85rem;
+      color: #14532d;
+    }
+    .batch-send-info strong {
+      font-size: 0.92rem;
+      color: #0f172a;
+    }
+    .batch-send-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     .btn-whatsapp-trigger {
@@ -1306,6 +1386,200 @@
       gap: 8px;
     }
     .report-card-list li:last-child { border-bottom: none; }
+
+    /* 1-Click RSVP Confirmation Page (?confirm=...) */
+    body.rsvp-mode {
+      padding-bottom: 32px;
+      background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 45%);
+      min-height: 100vh;
+    }
+    body.rsvp-mode .app-topbar,
+    body.rsvp-mode #rosterViewWrap,
+    body.rsvp-mode #membersViewWrap,
+    body.rsvp-mode #reportViewWrap {
+      display: none !important;
+    }
+    .rsvp-wrap {
+      display: none;
+      max-width: 480px;
+      margin: 24px auto;
+      padding: 0 4px;
+    }
+    body.rsvp-mode .rsvp-wrap {
+      display: block;
+    }
+    .rsvp-card {
+      background: #ffffff;
+      border: 2px solid #0f172a;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+    }
+    .rsvp-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 18px 20px;
+      text-align: center;
+    }
+    .rsvp-header h1 {
+      font-family: 'Gemunu Libre', 'Noto Sans Sinhala', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .rsvp-header p {
+      font-size: 0.84rem;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .rsvp-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .rsvp-details-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.94rem;
+    }
+    .rsvp-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      border-bottom: 1px dashed #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .rsvp-detail-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .rsvp-detail-label {
+      color: #64748b;
+      font-weight: 700;
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+    .rsvp-detail-val {
+      color: #0f172a;
+      font-weight: 800;
+      text-align: right;
+    }
+    .rsvp-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .rsvp-btn {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      border: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.1s ease, filter 0.15s ease;
+    }
+    .rsvp-btn:active {
+      transform: scale(0.99);
+    }
+    .rsvp-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    .rsvp-btn-ok {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #14532d;
+    }
+    .rsvp-btn-ok:hover:not(:disabled) {
+      background: #15803d;
+    }
+    .rsvp-btn-no {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #f87171;
+    }
+    .rsvp-btn-no:hover:not(:disabled) {
+      background: #fecaca;
+    }
+    .rsvp-btn-swap {
+      background: #e0f2fe;
+      color: #0369a1;
+      border-color: #7dd3fc;
+      padding: 11px 14px;
+      font-size: 0.92rem;
+    }
+    .rsvp-btn-swap:hover:not(:disabled) {
+      background: #bae6fd;
+    }
+    .rsvp-extra-box {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .rsvp-extra-box.active {
+      display: flex;
+    }
+    .rsvp-result-banner {
+      display: none;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+    .rsvp-result-banner.ok {
+      display: block;
+      background: #dcfce7;
+      color: #14532d;
+      border: 1.5px solid #22c55e;
+    }
+    .rsvp-result-banner.declined {
+      display: block;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1.5px solid #ef4444;
+    }
+    .rsvp-result-banner.swapped {
+      display: block;
+      background: #e0f2fe;
+      color: #075985;
+      border: 1.5px solid #38bdf8;
+    }
+    .rsvp-result-banner.error {
+      display: block;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1.5px solid #f59e0b;
+    }
+    .rsvp-footer {
+      text-align: center;
+      padding: 12px 16px 16px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .rsvp-footer a {
+      color: #0f172a;
+      font-weight: 700;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -1380,6 +1654,85 @@
   </header>
 
   <main class="main-wrap">
+    <!-- 0. 1-Click RSVP Confirmation Page (?confirm=...) -->
+    <div id="rsvpViewWrap" class="rsvp-wrap">
+      <div class="rsvp-card">
+        <div class="rsvp-header">
+          <h1>පොදු සේවය - බටගම සභාව</h1>
+          <p>සේවා වාරය තහවුරු කිරීමේ පිටුව (1-Click RSVP)</p>
+        </div>
+        <div class="rsvp-body">
+          <div id="rsvpLoadingState" style="text-align:center; padding:18px 8px; color:#475569; font-weight:700;">
+            ⏳ සේවා විස්තර පූරණය වෙමින් පවතී...
+          </div>
+
+          <div id="rsvpContent" style="display:none; flex-direction:column; gap:14px;">
+            <div class="rsvp-details-box">
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">👤 සාමාජිකයා:</span>
+                <span class="rsvp-detail-val" id="rsvpPersonName">-</span>
+              </div>
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">📅 දිනය:</span>
+                <span class="rsvp-detail-val" id="rsvpDisplayDate">-</span>
+              </div>
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">⏰ වේලාව:</span>
+                <span class="rsvp-detail-val" id="rsvpEventTime">-</span>
+              </div>
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">📍 ස්ථානය:</span>
+                <span class="rsvp-detail-val" id="rsvpLocation">-</span>
+              </div>
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">🏛️ සභාව:</span>
+                <span class="rsvp-detail-val">බටගම සභාව</span>
+              </div>
+              <div class="rsvp-detail-row">
+                <span class="rsvp-detail-label">📌 වත්මන් තත්වය:</span>
+                <span class="rsvp-detail-val"><span class="status-badge status-pending" id="rsvpCurrentBadge">⏳ Waiting</span></span>
+              </div>
+            </div>
+
+            <div class="rsvp-result-banner" id="rsvpResultBanner"></div>
+
+            <div class="rsvp-actions">
+              <button type="button" class="rsvp-btn rsvp-btn-ok" id="btnRsvpOk" onclick="submitRsvpResponse('Confirmed')">
+                ✅ හරි - මම එනවා (OK / Confirm)
+              </button>
+              <button type="button" class="rsvp-btn rsvp-btn-no" id="btnRsvpNo" onclick="submitRsvpResponse('Declined', true)">
+                ❌ බෑ - පැමිණිය නොහැක (NO / Decline)
+              </button>
+              <button type="button" class="rsvp-btn rsvp-btn-swap" id="btnRsvpSwap" onclick="toggleRsvpExtraPanel('swapped')">
+                ⇄ වෙනත් අයෙකු සමඟ මාරු වුණා (Swap)
+              </button>
+            </div>
+
+            <!-- Optional Reason Box for Decline -->
+            <div class="rsvp-extra-box" id="rsvpDeclineBox">
+              <label style="font-size:0.84rem; font-weight:700; color:#991b1b;">පැමිණිය නොහැකි හේතුව (විකල්පයි / Optional Reason):</label>
+              <input type="text" id="rsvpDeclineInput" class="field-input" placeholder="උදා: අසනීප තත්වයක් / රැකියා කටයුත්තක්">
+              <button type="button" class="rsvp-btn rsvp-btn-no" style="padding:10px 14px; font-size:0.92rem;" onclick="submitRsvpResponse('Declined', false)">
+                💾 හේතුව සුරකින්න (Save Reason)
+              </button>
+            </div>
+
+            <!-- Swap Details Box -->
+            <div class="rsvp-extra-box" id="rsvpSwapBox">
+              <label style="font-size:0.84rem; font-weight:700; color:#075985;">මාරු වූ සාමාජිකයා / විස්තර:</label>
+              <input type="text" id="rsvpSwapInput" class="field-input" placeholder="උදා: සුරංග සමඟ මාරු විය">
+              <button type="button" class="rsvp-btn rsvp-btn-swap" onclick="submitRsvpResponse('Swapped')">
+                ⇄ මාරු වීම තහවුරු කරන්න
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="rsvp-footer">
+          <a href="#" id="rsvpOpenFullRosterLink" onclick="return exitRsvpToFullRoster(event)">📅 සම්පූර්ණ කාලසටහන බලන්න (Open Full Roster)</a>
+        </div>
+      </div>
+    </div>
+
     <!-- 1. Roster View Section -->
     <div id="rosterViewWrap">
       <!-- Charm Title Section -->
@@ -1391,7 +1744,7 @@
         </div>
       </section>
 
-      <!-- Month Switcher & Minimal Search -->
+      <!-- Month Switcher, Search & 1-by-1 Pending WhatsApp Sender -->
       <div class="controls-row no-print">
         <div class="month-segmented">
           <button class="segment-btn active" id="tabNov" onclick="switchMonth('nov')">
@@ -1405,9 +1758,30 @@
           </button>
         </div>
 
-        <div class="search-box-charm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="searchInput" placeholder="නමක්, අංකයක්, තත්වයක් සොයන්න..." oninput="handleSearch(this.value)">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn-wa-batch" id="btnSendAllPending" onclick="startBatchPendingSend()" title="Open official WhatsApp 1-by-1 for all Waiting participants">
+            📲 Send All Pending (1-by-1)
+            <span class="batch-count-pill" id="pendingBatchCount">0</span>
+          </button>
+
+          <div class="search-box-charm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="searchInput" placeholder="නමක්, අංකයක්, තත්වයක් සොයන්න..." oninput="handleSearch(this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- 1-by-1 Official WhatsApp Queue Bar -->
+      <div class="batch-send-bar no-print" id="batchSendBar">
+        <div class="batch-send-info">
+          <span id="batchSendProgressText">Pending 1 of 1</span>
+          <strong id="batchSendTargetName">-</strong>
+          <span id="batchSendTargetMeta" style="font-size:0.78rem; color:#475569;">-</span>
+        </div>
+        <div class="batch-send-actions">
+          <button type="button" class="btn-wa-batch" onclick="sendNextPendingInBatch()">📲 Open WhatsApp &amp; Next ➔</button>
+          <button type="button" class="btn btn-secondary" onclick="skipCurrentPendingInBatch()">Skip ➔</button>
+          <button type="button" class="btn btn-secondary" onclick="closeBatchPendingBar()">✕ Close</button>
         </div>
       </div>
 
@@ -1690,10 +2064,11 @@
           <label>සේවා තත්වය (Live Status):</label>
           <select id="statusSelect" class="field-input" onchange="toggleStatusExtraFields(this.value)">
             <option value="Waiting">⏳ Waiting (පොරොත්තු)</option>
+            <option value="sent">✓ Sent (WhatsApp යැව්වා)</option>
             <option value="Confirmed">✓ Confirmed (තහවුරු කළා)</option>
             <option value="Swapped">⇄ Swapped / මාරු වුණා</option>
             <option value="Declined">✗ Declined / පැමිණිය නොහැක</option>
-            <option value="Sent_1">✉️ Sent_1 (පණිවිඩය යැව්වා)</option>
+            <option value="Sent_1">✉️ Sent_1 (Legacy Bot)</option>
             <option value="Retry_1">🔁 Retry_1 (නැවත යැව්වා 1)</option>
             <option value="Retry_2">🔁 Retry_2 (නැවත යැව්වා 2)</option>
             <option value="Not_Seen">👁️‍🗨️ Not_Seen (බලා නැත)</option>
@@ -1715,7 +2090,7 @@
       </div>
       <div class="modal-actions" style="flex-direction:column; gap:8px;">
         <button type="button" class="btn-whatsapp-trigger" onclick="sendWhatsAppNowFromModal()">
-          📲 Send / Resend WhatsApp Now (Bot)
+          📲 Open WhatsApp &amp; Mark Sent (1-Click)
         </button>
         <div style="display:flex; justify-content:flex-end; gap:8px; width:100%;">
           <button class="btn btn-secondary" onclick="closeModal('statusModal')">අවලංගු කරන්න</button>
@@ -1876,6 +2251,22 @@
     var firebaseConnected = false;
     var liveBookings = {};  // Map of bookingId/key -> booking record
     var liveContacts = {};  // Map of normalized name -> phone
+    var activeRsvpBookingId = "";
+    var activeRsvpBookingData = null;
+
+    function getConfirmParamFromLocation() {
+      try {
+        if (typeof window === "undefined" || !window.location || !window.location.search) return "";
+        var params = new URLSearchParams(window.location.search);
+        return (params.get("confirm") || "").trim();
+      } catch (e) {
+        return "";
+      }
+    }
+
+    if (typeof document !== "undefined" && document.body && getConfirmParamFromLocation()) {
+      document.body.classList.add("rsvp-mode");
+    }
 
     try {
       if (typeof firebase !== "undefined") {
@@ -1889,7 +2280,9 @@
           console.log("Analytics note:", aErr.message);
         }
         updateFirebaseStatus("live", "Firestore Live");
-        setupFirestoreListeners();
+        if (!getConfirmParamFromLocation()) {
+          setupFirestoreListeners();
+        }
       } else {
         updateFirebaseStatus("offline", "Firebase Offline");
       }
@@ -1942,6 +2335,11 @@
         renderCurrentMonth();
         if (typeof currentAppView !== "undefined" && currentAppView === "report") {
           renderReportView();
+        }
+        var sumModalEl = document.getElementById("summaryModal");
+        if (sumModalEl && sumModalEl.classList.contains("active")) {
+          generateFullSummaryData();
+          renderSummaryUI();
         }
       }, function(error) {
         console.warn("Firestore bookings listener warning:", error);
@@ -2055,7 +2453,9 @@
     function formatWhatsAppPhone(phone) {
       if (!phone) return "";
       var clean = String(phone).replace(/\D/g, "");
-      if (clean.startsWith("0")) {
+      if (clean.startsWith("00")) {
+        clean = clean.slice(2);
+      } else if (clean.startsWith("0")) {
         clean = "94" + clean.slice(1);
       } else if (clean.length === 9 && clean.startsWith("7")) {
         clean = "94" + clean;
@@ -3095,6 +3495,7 @@
               displayDate: day.date,
               eventTime: slot.time,
               status: "Waiting",
+              sentCount: 0,
               lastSentAt: null
             };
             liveBookings[docId] = optData;
@@ -3219,12 +3620,20 @@
         html += '<div class="day-card theme-' + theme + '">';
         
         // Header Bar
+        var dayTargets = collectValidTargetsForDay(day, dayIndex);
         html += '<div class="card-header-bar">';
         html += '<span class="date-heading-text" contenteditable="true" spellcheck="false" onblur="updateDayDate(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit date">දිනය : ' + escapeHtml(day.date) + '</span>';
 
         html += '<div class="header-right">';
         html += '<span class="loc-text" contenteditable="true" spellcheck="false" onblur="updateDayLocation(' + dayIndex + ', this.textContent)" onkeydown="handleCellKey(event, this)" title="Click to edit location">ස්ථානය : ' + escapeHtml(day.location) + '</span>';
-        
+
+        if (dayTargets.all.length > 0) {
+          var dayBtnLabel = (dayTargets.waiting.length > 0)
+            ? ('📲 Send Waiting (' + dayTargets.waiting.length + ')')
+            : ('📲 Send Day (' + dayTargets.all.length + ')');
+          html += '<button type="button" class="btn-send-day no-print" onclick="sendAllForDay(' + dayIndex + ')" title="Open Official WhatsApp for all scheduled members on this day">' + dayBtnLabel + '</button>';
+        }
+
         html += '<select class="theme-select-quick no-print" onchange="handleQuickThemeChange(' + dayIndex + ', this.value)" title="Change Theme Color">';
         html += '<option value="gold"' + (theme === 'gold' ? ' selected' : '') + '>Gold</option>';
         html += '<option value="green"' + (theme === 'green' ? ' selected' : '') + '>Green</option>';
@@ -3296,9 +3705,10 @@
                   html += '<span class="phone-badge add-phone no-print" onclick="openStatusModal(' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Add WhatsApp Phone">+ 📞</span>';
                 }
 
-                // Inline Manual Send / Resend Bot Trigger Button
-                var sendBtnLabel = (status === "Waiting") ? "📲 Send" : "📲 Resend";
-                html += '<button type="button" class="btn-send-bot-mini no-print" onclick="triggerBotReminderForSlot(event,' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Send / Resend WhatsApp via Bot">' + sendBtnLabel + '</button>';
+                // Inline 1-Click Official WhatsApp Send / Resend Button
+                var isUnsent = !status || status === "Waiting";
+                var sendBtnLabel = isUnsent ? "📲 Send" : "📲 Resend";
+                html += '<button type="button" class="btn-send-bot-mini no-print" onclick="sendDirectWhatsAppForSlot(event,' + dayIndex + ',' + slotIndex + ',' + pIdx + ')" title="Open Official WhatsApp (1-Click)">' + sendBtnLabel + '</button>';
 
                 html += '</div>';
               }
@@ -3322,33 +3732,45 @@
       });
 
       container.innerHTML = html;
+      updatePendingBatchButtonCount();
+      if (batchPendingMonth === currentMonth && batchPendingQueue.length > 0) {
+        renderBatchSendBar();
+      } else {
+        closeBatchPendingBar();
+      }
     }
 
     function formatStatusBadge(status, booking) {
-      if (status === "Confirmed") {
+      var normalized = String(status || "Waiting");
+      var lower = normalized.toLowerCase();
+      if (normalized === "Confirmed") {
         return { cls: "status-confirmed", html: "✓ Confirmed" };
-      } else if (status === "Swapped") {
+      } else if (lower === "sent" || normalized === "Sent_1") {
+        var countSuffix = (booking && typeof booking.sentCount === "number" && booking.sentCount > 1)
+          ? (" (" + booking.sentCount + ")")
+          : "";
+        return { cls: "status-sent", html: "✓ Sent" + countSuffix };
+      } else if (normalized === "Swapped") {
         var detail = (booking && booking.swapDetails) ? (": " + escapeHtml(booking.swapDetails)) : "";
         return { cls: "status-swapped", html: "⇄ Swapped" + detail };
-      } else if (status === "Declined") {
+      } else if (normalized === "Declined") {
         var reason = (booking && booking.declineReason) ? (": " + escapeHtml(booking.declineReason)) : "";
         return { cls: "status-declined", html: "✗ Declined" + reason };
-      } else if (status === "Invalid_Number") {
+      } else if (normalized === "Invalid_Number") {
         return { cls: "status-declined", html: "✗ Invalid Number" };
       } else {
-        // Pending states: Waiting, Sent_1, Retry_1, Retry_2, Not_Seen
+        // Pending states: Waiting, Retry_1, Retry_2, Not_Seen
         var label = "Pending";
-        if (status === "Sent_1") label = "Sent (1)";
-        else if (status === "Retry_1") label = "Retry (1)";
-        else if (status === "Retry_2") label = "Retry (2)";
-        else if (status === "Not_Seen") label = "Not Seen";
-        else if (status === "Waiting") label = "Waiting";
+        if (normalized === "Retry_1") label = "Retry (1)";
+        else if (normalized === "Retry_2") label = "Retry (2)";
+        else if (normalized === "Not_Seen") label = "Not Seen";
+        else if (normalized === "Waiting") label = "Waiting";
         return { cls: "status-pending", html: "⏳ " + label };
       }
     }
 
     /* ========================================================
-       FIRESTORE WRITES: PARTICIPANT STATUS & PHONE
+       FIRESTORE WRITES & 1-CLICK OFFICIAL WHATSAPP SENDER
        ======================================================== */
     function syncSlotToFirestore(day, slot, pIndex, personName) {
       if (!db || !personName) return;
@@ -3364,6 +3786,7 @@
         var status = isSamePerson ? (existing.status || "Waiting") : "Waiting";
         var phone = isSamePerson ? (currentPhone || existing.phone || "") : (currentPhone || "");
         var lastSentAt = isSamePerson ? (existing.lastSentAt || null) : null;
+        var sentCount = isSamePerson ? (existing.sentCount || 0) : 0;
         var retryCount = isSamePerson ? (existing.retryCount || 0) : 0;
         var declineReason = isSamePerson ? (existing.declineReason || "") : "";
         var swapDetails = isSamePerson ? (existing.swapDetails || "") : "";
@@ -3379,6 +3802,7 @@
           location: day.location || "වැලිගම්පිටිය හන්දිය",
           days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
           status: status,
+          sentCount: sentCount,
           retryCount: retryCount,
           declineReason: declineReason,
           swapDetails: swapDetails,
@@ -3392,67 +3816,402 @@
       }).catch(function(e){ console.warn("Firestore syncSlot error:", e); });
     }
 
-    function triggerBotReminderForSlot(evt, dayIndex, slotIndex, pIndex) {
-      if (evt && evt.stopPropagation) evt.stopPropagation();
-
-      var active = getActiveData();
-      var day = active[dayIndex];
-      var slot = day.slots[slotIndex];
-      var personName = (slot.participants[pIndex] || "").trim();
-      if (!personName) return;
-
-      var booking = getBookingForSlot(day, slot, pIndex, personName);
-      var latestPhone = getLatestMemberPhone(personName) || getPhoneForPerson(personName, booking);
-      if (!latestPhone) {
-        alert("කරුණාකර පළමුව " + personName + " සඳහා WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
-        showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
-        openStatusModal(dayIndex, slotIndex, pIndex);
-        return;
+    function utf8ToBase64Url(str) {
+      try {
+        var bin = encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(_, p1) {
+          return String.fromCharCode(parseInt(p1, 16));
+        });
+        return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      } catch (e) {
+        return "";
       }
+    }
 
+    function base64UrlToUtf8(b64) {
+      var padded = String(b64).replace(/-/g, "+").replace(/_/g, "/");
+      while (padded.length % 4) padded += "=";
+      var bin = atob(padded);
+      var pct = "";
+      for (var i = 0; i < bin.length; i++) {
+        var hex = bin.charCodeAt(i).toString(16).toUpperCase();
+        pct += "%" + (hex.length < 2 ? "0" + hex : hex);
+      }
+      return decodeURIComponent(pct);
+    }
+
+    function encodeConfirmPayload(bookingId, slotMeta) {
+      if (!bookingId) return "";
+      var payload = { b: bookingId };
+      if (slotMeta && typeof slotMeta === "object") {
+        if (slotMeta.m) payload.m = slotMeta.m;
+        if (typeof slotMeta.d === "number") payload.d = slotMeta.d;
+        if (typeof slotMeta.s === "number") payload.s = slotMeta.s;
+        if (typeof slotMeta.p === "number") payload.p = slotMeta.p;
+      }
+      var encoded = utf8ToBase64Url(JSON.stringify(payload));
+      return encoded || bookingId;
+    }
+
+    function parseConfirmToken(rawToken) {
+      var token = String(rawToken || "").trim();
+      if (!token) return null;
+      try {
+        var jsonStr = base64UrlToUtf8(token);
+        var parsed = JSON.parse(jsonStr);
+        if (parsed && parsed.b) {
+          return parsed;
+        }
+      } catch (e) {}
+      return { b: token };
+    }
+
+    function buildRsvpConfirmUrl(bookingId, slotMeta) {
+      if (!bookingId) return "";
+      var confirmPayload = encodeConfirmPayload(bookingId, slotMeta);
+      var origin = (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin !== "null")
+        ? window.location.origin
+        : "";
+      if (origin) {
+        return origin + "/?confirm=" + encodeURIComponent(confirmPayload);
+      }
+      return "?confirm=" + encodeURIComponent(confirmPayload);
+    }
+
+    function buildSinhalaReminderMessage(personName, displayDate, eventTime, location, bookingId, slotMeta) {
+      var resolvedBookingId = bookingId || ((displayDate && eventTime) ? makeBookingDocId(displayDate, eventTime, 0) : "");
+      var confirmUrl = buildRsvpConfirmUrl(resolvedBookingId, slotMeta);
+      var msg = "ආයුබෝවන් " + personName + "! 👋\n" +
+        "පොදු සේවය (බටගම සභාව) සඳහා ඔබට වෙන් කර ඇති සේවා වාරය:\n\n" +
+        "📅 දිනය: *" + (displayDate || "නියමිත දිනය") + "*\n" +
+        "⏰ වේලාව: *" + (eventTime || "නියමිත වේලාව") + "*\n" +
+        "📍 ස්ථානය: *" + (location || "වැලිගම්පිටිය හන්දිය") + "*\n" +
+        "🏛️ සභාව: *බටගම සභාව*\n\n" +
+        "ඔබ මේ සඳහා සහභාගි වන්නේද?\n" +
+        "• පැමිණෙන්නේ නම්: *හරි* (හෝ *yes*)\n" +
+        "• පැමිණිය නොහැකි නම්: *බෑ* (හෝ *no*)\n" +
+        "• මාරු කරන්නේ නම්: *swap [විස්තර]*";
+      if (confirmUrl) {
+        msg += "\n\nපැමිණීම තහවුරු කිරීමට (OK / NO) පහත ලින්ක් එක ඔබන්න:\n" + confirmUrl;
+      }
+      return msg;
+    }
+
+    function buildOfficialWhatsAppUrl(formattedPhone, personName, displayDate, eventTime, location, bookingId, slotMeta) {
+      var messageText = buildSinhalaReminderMessage(personName, displayDate, eventTime, location, bookingId, slotMeta);
+      var encodedMessage = encodeURIComponent(messageText);
+      return "https://wa.me/" + formattedPhone + "?text=" + encodedMessage;
+    }
+
+    function markBookingAsSent(day, slot, pIndex, personName, formattedPhone, extraFields, opts) {
+      opts = opts || {};
       var isoDate = formatDateToISO(day.date);
       var docId = makeBookingDocId(isoDate, slot.time, pIndex);
+      var existing = liveBookings[docId] || getBookingForSlot(day, slot, pIndex, personName);
+      var samePerson = existing && existing.name && normalizeSinhalaForMatch(existing.name) === normalizeSinhalaForMatch(personName);
+      var sameDate = existing && (!existing.eventDate || existing.eventDate === isoDate);
+      var currentCount = (samePerson && typeof existing.sentCount === "number") ? existing.sentCount : 0;
+      var nextSentCount = currentCount + 1;
 
-      var samePerson = booking && booking.name && normalizeSinhalaForMatch(booking.name) === normalizeSinhalaForMatch(personName);
-      var sameDate = booking && (!booking.eventDate || booking.eventDate === isoDate);
-      var preserveDayBefore = !!(samePerson && sameDate && booking.dayBeforeReminderSent);
-      var resendNonce = Date.now();
-
-      var triggerPayload = {
+      var baseData = Object.assign({
         name: personName,
-        phone: latestPhone,
+        phone: formattedPhone,
         eventDate: isoDate,
         displayDate: day.date,
         eventTime: slot.time,
         location: day.location || "වැලිගම්පිටිය හන්දිය",
         days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
-        status: "Waiting",
+        status: "sent",
         retryCount: 0,
         declineReason: "",
         swapDetails: "",
-        lastSentAt: null,
-        resendNonce: resendNonce,
-        dayBeforeReminderSent: preserveDayBefore,
-        dayBeforeReminderSentAt: preserveDayBefore ? (booking.dayBeforeReminderSentAt || null) : null,
         summarySent: false,
-        manualTriggerAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
+        dayBeforeReminderSent: !!(samePerson && sameDate && existing.dayBeforeReminderSent),
+        dayBeforeReminderSentAt: (samePerson && sameDate && existing.dayBeforeReminderSentAt) ? existing.dayBeforeReminderSentAt : null
+      }, extraFields || {});
 
-      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, triggerPayload);
+      var localData = Object.assign({}, baseData, {
+        sentCount: nextSentCount,
+        lastSentAt: new Date()
+      });
+      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, localData);
       liveBookings[makeCompositeBookingKey(isoDate, slot.time, personName)] = liveBookings[docId];
-      renderCurrentMonth();
+      if (!opts.skipRender) {
+        renderCurrentMonth();
+      }
 
       if (db) {
-        db.collection("bookings").doc(docId).set(triggerPayload, { merge: true }).then(function() {
-          showToast("Bot reminder triggered for " + personName + "!");
-        }).catch(function(e) {
-          console.warn("Manual bot trigger error:", e);
-          showToast("Bot trigger දෝෂයක් ඇතිවිය.");
+        var firestoreData = Object.assign({}, baseData, {
+          sentCount: firebase.firestore.FieldValue.increment(1),
+          lastSentAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-      } else {
-        showToast("Firestore Offline — Bot trigger කළ නොහැක.");
+        db.collection("bookings").doc(docId).set(firestoreData, { merge: true }).then(function() {
+          if (!opts.quietToast) {
+            showToast("WhatsApp විවෘත විය — " + personName + " (✓ Sent)!");
+          }
+        }).catch(function(e) {
+          console.warn("Firestore mark sent warning:", e);
+          if (!opts.quietToast) {
+            showToast("Firestore යාවත්කාලීන දෝෂයක් ඇතිවිය.");
+          }
+        });
+      } else if (!opts.quietToast) {
+        showToast("WhatsApp විවෘත විය — " + personName + " (Local Sent)");
       }
+    }
+
+    function launchDirectWhatsAppReminder(dayIndex, slotIndex, pIndex, overrideName, overridePhone, openModalIfMissing) {
+      var active = getActiveData();
+      var day = active[dayIndex];
+      var slot = day && day.slots && day.slots[slotIndex];
+      if (!day || !slot) return false;
+
+      var personName = (overrideName || slot.participants[pIndex] || "").trim();
+      if (!personName) return false;
+
+      var booking = getBookingForSlot(day, slot, pIndex, personName);
+      var rawPhone = overridePhone || getLatestMemberPhone(personName) || getPhoneForPerson(personName, booking);
+      var formattedPhone = formatWhatsAppPhone(rawPhone);
+
+      if (!formattedPhone || formattedPhone.length < 10 || formattedPhone.length > 15) {
+        alert("කරුණාකර පළමුව " + personName + " සඳහා නිවැරදි WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
+        showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
+        if (openModalIfMissing) {
+          openStatusModal(dayIndex, slotIndex, pIndex);
+        }
+        return false;
+      }
+
+      var bookingId = makeBookingDocId(day.date, slot.time, pIndex);
+      var slotMeta = { m: currentMonth, d: dayIndex, s: slotIndex, p: pIndex };
+      var waUrl = buildOfficialWhatsAppUrl(formattedPhone, personName, day.date, slot.time, day.location, bookingId, slotMeta);
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+      markBookingAsSent(day, slot, pIndex, personName, formattedPhone, {
+        slotMonth: currentMonth,
+        slotDayIndex: dayIndex,
+        slotIndex: slotIndex,
+        participantIndex: pIndex
+      });
+      return true;
+    }
+
+    function sendDirectWhatsAppForSlot(evt, dayIndex, slotIndex, pIndex) {
+      if (evt && evt.stopPropagation) evt.stopPropagation();
+      launchDirectWhatsAppReminder(dayIndex, slotIndex, pIndex, null, null, true);
+    }
+
+    function triggerBotReminderForSlot(evt, dayIndex, slotIndex, pIndex) {
+      sendDirectWhatsAppForSlot(evt, dayIndex, slotIndex, pIndex);
+    }
+
+    /* ========================================================
+       DAY-LEVEL 1-CLICK SEND ALL & 1-BY-1 PENDING HELPER
+       ======================================================== */
+    var batchPendingQueue = [];
+    var batchPendingIndex = 0;
+    var batchPendingMonth = "";
+    var dayBatchTimers = [];
+
+    function clearDayBatchTimers() {
+      while (dayBatchTimers.length > 0) {
+        clearTimeout(dayBatchTimers.pop());
+      }
+    }
+
+    function collectValidTargetsForDay(day, dayIndex) {
+      var all = [];
+      var waiting = [];
+      var missingPhoneCount = 0;
+      if (!day || (day.note && day.note.trim()) || !Array.isArray(day.slots)) {
+        return { all: all, waiting: waiting, missingPhoneCount: missingPhoneCount };
+      }
+
+      day.slots.forEach(function(slot, slotIndex) {
+        for (var pIdx = 0; pIdx < 3; pIdx++) {
+          var pName = (slot.participants[pIdx] || "").trim();
+          if (!pName) continue;
+          var booking = getBookingForSlot(day, slot, pIdx, pName);
+          var status = (booking && booking.status) ? booking.status : "Waiting";
+          var phone = formatWhatsAppPhone(getLatestMemberPhone(pName) || getPhoneForPerson(pName, booking));
+          if (phone && phone.length >= 10 && phone.length <= 15) {
+            var item = {
+              dayIndex: dayIndex,
+              slotIndex: slotIndex,
+              pIndex: pIdx,
+              personName: pName,
+              phone: phone,
+              status: status,
+              date: day.date,
+              time: slot.time,
+              location: day.location
+            };
+            all.push(item);
+            if (String(status).toLowerCase() === "waiting") {
+              waiting.push(item);
+            }
+          } else {
+            missingPhoneCount++;
+          }
+        }
+      });
+
+      return { all: all, waiting: waiting, missingPhoneCount: missingPhoneCount };
+    }
+
+    function sendAllForDay(dayIndex) {
+      var active = getActiveData();
+      var day = active[dayIndex];
+      if (!day) return 0;
+
+      var dayTargets = collectValidTargetsForDay(day, dayIndex);
+      var targets = (dayTargets.waiting.length > 0) ? dayTargets.waiting : dayTargets.all;
+      if (targets.length === 0) {
+        showToast("මෙම දිනය සඳහා වලංගු WhatsApp අංක සහිත සාමාජිකයින් නොමැත!");
+        return 0;
+      }
+
+      clearDayBatchTimers();
+
+      var prepared = targets.map(function(t) {
+        var bookingId = makeBookingDocId(day.date, t.time, t.pIndex);
+        var slotMeta = { m: currentMonth, d: dayIndex, s: t.slotIndex, p: t.pIndex };
+        return {
+          slot: day.slots[t.slotIndex],
+          slotIndex: t.slotIndex,
+          pIndex: t.pIndex,
+          personName: t.personName,
+          phone: t.phone,
+          waUrl: buildOfficialWhatsAppUrl(t.phone, t.personName, day.date, t.time, day.location, bookingId, slotMeta)
+        };
+      });
+
+      var bannerMsg = "Opening WhatsApp for " + prepared.length + " members on " + day.date +
+        "... (Allow pop-ups in browser if prompted)";
+      showToast(bannerMsg, Math.max(5000, prepared.length * 1200 + 1200));
+
+      window.open(prepared[0].waUrl, "_blank", "noopener,noreferrer");
+
+      prepared.forEach(function(item) {
+        markBookingAsSent(day, item.slot, item.pIndex, item.personName, item.phone, {
+          slotMonth: currentMonth,
+          slotDayIndex: dayIndex,
+          slotIndex: item.slotIndex,
+          participantIndex: item.pIndex
+        }, {
+          skipRender: true,
+          quietToast: true
+        });
+      });
+      renderCurrentMonth();
+
+      for (var i = 1; i < prepared.length; i++) {
+        (function(item, delayMs) {
+          var tid = setTimeout(function() {
+            var pop = window.open(item.waUrl, "_blank", "noopener,noreferrer");
+            if (!pop) {
+              showToast("⚠️ Browser pop-ups blocked! Allow pop-ups in the address bar and try again.", 6000);
+            }
+          }, delayMs);
+          dayBatchTimers.push(tid);
+        })(prepared[i], i * 1200);
+      }
+
+      return prepared.length;
+    }
+
+    function getPendingWaitingSlots() {
+      var active = getActiveData();
+      var ready = [];
+      var missingPhoneCount = 0;
+
+      active.forEach(function(day, dayIndex) {
+        var dayTargets = collectValidTargetsForDay(day, dayIndex);
+        Array.prototype.push.apply(ready, dayTargets.waiting);
+        missingPhoneCount += dayTargets.missingPhoneCount;
+      });
+
+      return { ready: ready, missingPhoneCount: missingPhoneCount };
+    }
+
+    function updatePendingBatchButtonCount() {
+      var el = document.getElementById("pendingBatchCount");
+      if (!el) return;
+      var info = getPendingWaitingSlots();
+      el.textContent = info.ready.length;
+    }
+
+    function renderBatchSendBar() {
+      var bar = document.getElementById("batchSendBar");
+      if (!bar) return;
+      if (batchPendingMonth !== currentMonth || batchPendingIndex >= batchPendingQueue.length) {
+        closeBatchPendingBar();
+        return;
+      }
+
+      var item = batchPendingQueue[batchPendingIndex];
+      bar.classList.add("active");
+      document.getElementById("batchSendProgressText").textContent =
+        "Pending " + (batchPendingIndex + 1) + " of " + batchPendingQueue.length + " (Waiting)";
+      document.getElementById("batchSendTargetName").textContent = item.personName + " (+" + item.phone + ")";
+      document.getElementById("batchSendTargetMeta").textContent =
+        item.date + " | " + item.time + " | " + (item.location || "වැලිගම්පිටිය හන්දිය");
+    }
+
+    function startBatchPendingSend() {
+      var info = getPendingWaitingSlots();
+      if (info.ready.length === 0) {
+        if (info.missingPhoneCount > 0) {
+          showToast("Waiting සාමාජිකයින් " + info.missingPhoneCount + " දෙනෙකුට දුරකථන අංක නොමැත!");
+        } else {
+          showToast("යැවීමට පොරොත්තු (Waiting) සාමාජිකයින් නොමැත!");
+        }
+        closeBatchPendingBar();
+        return;
+      }
+
+      batchPendingMonth = currentMonth;
+      batchPendingQueue = info.ready;
+      batchPendingIndex = 0;
+      renderBatchSendBar();
+      if (info.missingPhoneCount > 0) {
+        showToast("දුරකථන අංක නැති " + info.missingPhoneCount + " දෙනෙකු මඟ හරින ලදි.");
+      }
+    }
+
+    function sendNextPendingInBatch() {
+      if (batchPendingMonth !== currentMonth || batchPendingIndex >= batchPendingQueue.length) {
+        closeBatchPendingBar();
+        return;
+      }
+      var item = batchPendingQueue[batchPendingIndex];
+      batchPendingIndex++;
+      var sentOk = launchDirectWhatsAppReminder(item.dayIndex, item.slotIndex, item.pIndex, item.personName, item.phone, false);
+      if (batchPendingIndex >= batchPendingQueue.length) {
+        closeBatchPendingBar();
+        if (sentOk) {
+          showToast("සියලුම Waiting සාමාජිකයින් වෙත WhatsApp විවෘත කර අවසන්!");
+        }
+      } else {
+        renderBatchSendBar();
+      }
+    }
+
+    function skipCurrentPendingInBatch() {
+      batchPendingIndex++;
+      if (batchPendingIndex >= batchPendingQueue.length) {
+        closeBatchPendingBar();
+        showToast("Pending ලැයිස්තුව අවසන්.");
+      } else {
+        renderBatchSendBar();
+      }
+    }
+
+    function closeBatchPendingBar() {
+      batchPendingQueue = [];
+      batchPendingIndex = 0;
+      batchPendingMonth = "";
+      var bar = document.getElementById("batchSendBar");
+      if (bar) bar.classList.remove("active");
     }
 
     function sendWhatsAppNowFromModal() {
@@ -3492,6 +4251,7 @@
       document.getElementById("statusInputPhone").value = phone;
 
       var statusVal = (booking && booking.status) ? booking.status : "Waiting";
+      if (String(statusVal).toLowerCase() === "sent") statusVal = "sent";
       document.getElementById("statusSelect").value = statusVal;
       document.getElementById("statusInputSwap").value = (booking && booking.swapDetails) ? booking.swapDetails : "";
       document.getElementById("statusInputDecline").value = (booking && booking.declineReason) ? booking.declineReason : "";
@@ -3505,7 +4265,7 @@
       document.getElementById("declineReasonGroup").style.display = (val === "Declined") ? "flex" : "none";
     }
 
-    function saveParticipantStatusAndPhone(forceBotSend) {
+    function saveParticipantStatusAndPhone(forceWhatsAppSend) {
       var dayIndex = parseInt(document.getElementById("statusDayIndex").value);
       var slotIndex = parseInt(document.getElementById("statusSlotIndex").value);
       var pIndex = parseInt(document.getElementById("statusPIndex").value);
@@ -3529,15 +4289,12 @@
       if (!formattedPhone && latestMemberPhone) {
         formattedPhone = latestMemberPhone;
       }
-      var status = (forceBotSend || personChanged) ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
-      var swapDetails = forceBotSend ? "" : document.getElementById("statusInputSwap").value.trim();
-      var declineReason = forceBotSend ? "" : document.getElementById("statusInputDecline").value.trim();
 
       if (rawPhone && (formattedPhone.length < 10 || formattedPhone.length > 15)) {
         alert("කරුණාකර නිවැරදි 947XXXXXXXX හෝ ජාත්‍යන්තර WhatsApp අංකයක් ඇතුළත් කරන්න!");
         return;
       }
-      if (forceBotSend && !formattedPhone) {
+      if (forceWhatsAppSend && (!formattedPhone || formattedPhone.length < 10 || formattedPhone.length > 15)) {
         alert("WhatsApp පණිවිඩය යැවීමට කරුණාකර WhatsApp දුරකථන අංකයක් ඇතුළත් කරන්න!");
         showToast("කරුණාකර පළමුව WhatsApp දුරකථන අංකය ඇතුළත් කරන්න!");
         return;
@@ -3555,10 +4312,24 @@
         }
       }
 
-      // 2. Update booking document in Firestore (with YYYY-MM-DD eventDate)
+      // 2. If triggered via 1-Click Official WhatsApp button, launch wa.me & mark 'sent'
+      if (forceWhatsAppSend) {
+        launchDirectWhatsAppReminder(dayIndex, slotIndex, pIndex, personName, formattedPhone, false);
+        closeModal("statusModal");
+        return;
+      }
+
+      var status = personChanged ? "Waiting" : (document.getElementById("statusSelect").value || "Waiting");
+      var swapDetails = document.getElementById("statusInputSwap").value.trim();
+      var declineReason = document.getElementById("statusInputDecline").value.trim();
+
+      // 3. Normal Firestore booking status save
       var isoDate = formatDateToISO(day.date);
       var existingBooking = liveBookings[docId] || getBookingForSlot(day, slot, pIndex, personName);
       var dateChanged = !!(existingBooking && existingBooking.eventDate && existingBooking.eventDate !== isoDate);
+      var preservedSentCount = (personChanged || !existingBooking || typeof existingBooking.sentCount !== "number")
+        ? 0
+        : existingBooking.sentCount;
 
       var bookingData = {
         name: personName,
@@ -3569,42 +4340,39 @@
         location: day.location || "වැලිගම්පිටිය හන්දිය",
         days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
         status: status,
+        sentCount: preservedSentCount,
         retryCount: 0,
         declineReason: (status === "Declined") ? declineReason : "",
         swapDetails: (status === "Swapped") ? swapDetails : "",
-        lastSentAt: (status === "Waiting") ? null : firebase.firestore.FieldValue.serverTimestamp(),
-        summarySent: false,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        summarySent: false
       };
-      if (forceBotSend) {
-        bookingData.resendNonce = Date.now();
-        bookingData.manualTriggerAt = firebase.firestore.FieldValue.serverTimestamp();
-      }
       if (personChanged || dateChanged) {
         bookingData.dayBeforeReminderSent = false;
         bookingData.dayBeforeReminderSentAt = null;
       }
 
       if (db) {
-        db.collection("bookings").doc(docId).set(bookingData, { merge: true }).then(function() {
-          showToast(forceBotSend
-            ? ("Bot reminder triggered for " + personName + "!")
-            : "Firestore Booking සාර්ථකව සුරැකිණි! WhatsApp reminder එක ස්වයංක්‍රීයව යවනු ඇත.");
+        var firestorePayload = Object.assign({}, bookingData, {
+          lastSentAt: (status === "Waiting") ? null : firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        db.collection("bookings").doc(docId).set(firestorePayload, { merge: true }).then(function() {
+          showToast("Firestore Booking සාර්ථකව සුරැකිණි!");
         }).catch(function(e) {
           console.warn("Firestore booking write warning:", e);
         });
       }
 
       // Local optimistic update
-      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, bookingData);
+      liveBookings[docId] = Object.assign({}, liveBookings[docId] || {}, bookingData, {
+        lastSentAt: (status === "Waiting") ? null : new Date()
+      });
       var cKey = makeCompositeBookingKey(isoDate, slot.time, personName);
       liveBookings[cKey] = liveBookings[docId];
 
       closeModal("statusModal");
       renderCurrentMonth();
-      if (!forceBotSend) {
-        showToast("තත්වය සාර්ථකව සුරැකිණි!");
-      }
+      showToast("තත්වය සාර්ථකව සුරැකිණි!");
     }
 
     /* ========================================================
@@ -3891,13 +4659,18 @@
       }
     }
 
-    function showToast(msg) {
+    var toastHideTimer = null;
+    function showToast(msg, durationMs) {
       var toast = document.getElementById("toastBox");
-      document.getElementById("toastMsg").textContent = msg;
+      var msgEl = document.getElementById("toastMsg");
+      if (!toast || !msgEl) return;
+      msgEl.textContent = msg;
       toast.classList.add("show");
-      setTimeout(function() {
+      if (toastHideTimer) clearTimeout(toastHideTimer);
+      toastHideTimer = setTimeout(function() {
         toast.classList.remove("show");
-      }, 2200);
+        toastHideTimer = null;
+      }, durationMs || 2200);
     }
 
     function escapeHtml(text) {
@@ -3966,8 +4739,314 @@
       showToast("Excel ගොනුව සාර්ථකව බාගත විය!");
     }
 
+    /* ========================================================
+       1-CLICK RSVP CONFIRMATION PAGE CONTROLLER (?confirm=...)
+       ======================================================== */
+    function loadStoredRosterAndMembersForFallback() {
+      try {
+        var sMem = localStorage.getItem(STORE_KEY + "members");
+        if (sMem) {
+          var parsedMem = JSON.parse(sMem);
+          if (Array.isArray(parsedMem) && parsedMem.length > 0) liveMembers = parsedMem;
+        }
+        ["sep", "nov", "oct"].forEach(function(mKey) {
+          var sMonth = localStorage.getItem(STORE_KEY + mKey);
+          if (sMonth) rosterStore[mKey] = JSON.parse(sMonth);
+        });
+      } catch (e) {}
+    }
+
+    var activeRsvpConfirmMeta = null;
+    var rsvpDocUnsubscribe = null;
+
+    function buildFallbackBookingRecord(day, slot, pIdx, pName, monthKey, dayIdx, slotIdx) {
+      var isoDate = formatDateToISO(day.date);
+      return {
+        name: pName,
+        phone: getPhoneForPerson(pName, null) || "",
+        eventDate: isoDate,
+        displayDate: day.date,
+        eventTime: slot.time,
+        location: day.location || "වැලිගම්පිටිය හන්දිය",
+        days: (day.type === "sat") ? "සෙනසුරාදා" : "ඉරිදා",
+        slotMonth: monthKey,
+        slotDayIndex: dayIdx,
+        slotIndex: slotIdx,
+        participantIndex: pIdx,
+        status: "Waiting"
+      };
+    }
+
+    function findRosterSlotByConfirmMeta(confirmMeta) {
+      if (!confirmMeta) return null;
+      if (confirmMeta.m && typeof confirmMeta.d === "number" && typeof confirmMeta.s === "number" && typeof confirmMeta.p === "number") {
+        var directDays = rosterStore[confirmMeta.m] || [];
+        var directDay = directDays[confirmMeta.d];
+        var directSlot = directDay && directDay.slots && directDay.slots[confirmMeta.s];
+        var directName = directSlot && directSlot.participants ? (directSlot.participants[confirmMeta.p] || "").trim() : "";
+        if (directName && (!confirmMeta.b || makeBookingDocId(directDay.date, directSlot.time, confirmMeta.p) === confirmMeta.b)) {
+          return buildFallbackBookingRecord(directDay, directSlot, confirmMeta.p, directName, confirmMeta.m, confirmMeta.d, confirmMeta.s);
+        }
+      }
+      return findRosterSlotByDocId(confirmMeta.b);
+    }
+
+    function findRosterSlotByDocId(bookingId) {
+      if (!bookingId) return null;
+      var months = ["nov", "oct", "sep"];
+      for (var mIdx = 0; mIdx < months.length; mIdx++) {
+        var mKey = months[mIdx];
+        var days = rosterStore[mKey] || [];
+        for (var dIdx = 0; dIdx < days.length; dIdx++) {
+          var day = days[dIdx];
+          if (!day || (day.note && day.note.trim()) || !Array.isArray(day.slots)) continue;
+          var isoDate = formatDateToISO(day.date);
+          for (var sIdx = 0; sIdx < day.slots.length; sIdx++) {
+            var slot = day.slots[sIdx];
+            for (var pIdx = 0; pIdx < 3; pIdx++) {
+              var pName = (slot.participants[pIdx] || "").trim();
+              if (!pName) continue;
+              if (makeBookingDocId(isoDate, slot.time, pIdx) === bookingId) {
+                return buildFallbackBookingRecord(day, slot, pIdx, pName, mKey, dIdx, sIdx);
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    function renderRsvpResultBanner(status, booking) {
+      var banner = document.getElementById("rsvpResultBanner");
+      if (!banner) return;
+      banner.className = "rsvp-result-banner";
+      banner.textContent = "";
+
+      if (status === "Confirmed") {
+        banner.classList.add("ok");
+        banner.textContent = "✅ ඔබගේ පැමිණීම සාර්ථකව තහවුරු විය! ස්තූතියි 🙏";
+      } else if (status === "Declined") {
+        banner.classList.add("declined");
+        var reasonTxt = (booking && booking.declineReason) ? (" (" + booking.declineReason + ")") : "";
+        banner.textContent = "❌ පැමිණිය නොහැකි බව සටහන් විය" + reasonTxt + ". දැනුම් දීමට ස්තූතියි!";
+      } else if (status === "Swapped") {
+        banner.classList.add("swapped");
+        var swapTxt = (booking && booking.swapDetails) ? (" (" + booking.swapDetails + ")") : "";
+        banner.textContent = "⇄ මාරු වූ විස්තර සටහන් විය" + swapTxt + ". ස්තූතියි!";
+      }
+    }
+
+    function renderRsvpCard(data) {
+      activeRsvpBookingData = data;
+      document.getElementById("rsvpPersonName").textContent = data.name || "-";
+      document.getElementById("rsvpDisplayDate").textContent = data.displayDate || data.eventDate || "-";
+      document.getElementById("rsvpEventTime").textContent = data.eventTime || "-";
+      document.getElementById("rsvpLocation").textContent = data.location || "වැලිගම්පිටිය හන්දිය";
+
+      var badgeEl = document.getElementById("rsvpCurrentBadge");
+      if (badgeEl) {
+        var badgeInfo = formatStatusBadge(data.status || "Waiting", data);
+        badgeEl.className = "status-badge " + badgeInfo.cls;
+        badgeEl.innerHTML = badgeInfo.html;
+      }
+
+      renderRsvpResultBanner(data.status || "Waiting", data);
+      document.getElementById("rsvpLoadingState").style.display = "none";
+      document.getElementById("rsvpContent").style.display = "flex";
+    }
+
+    function toggleRsvpExtraPanel(mode) {
+      var declBox = document.getElementById("rsvpDeclineBox");
+      var swapBox = document.getElementById("rsvpSwapBox");
+      if (mode === "declined") {
+        var willOpen = !declBox.classList.contains("active");
+        declBox.classList.toggle("active", willOpen);
+        swapBox.classList.remove("active");
+      } else if (mode === "swapped") {
+        var willOpenSwap = !swapBox.classList.contains("active");
+        swapBox.classList.toggle("active", willOpenSwap);
+        declBox.classList.remove("active");
+      }
+    }
+
+    function setRsvpButtonsDisabled(disabled) {
+      ["btnRsvpOk", "btnRsvpNo", "btnRsvpSwap"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.disabled = !!disabled;
+      });
+    }
+
+    function showRsvpNotFound(msg) {
+      var loadingEl = document.getElementById("rsvpLoadingState");
+      loadingEl.style.display = "block";
+      loadingEl.innerHTML = '<div class="rsvp-result-banner error" style="display:block;">' + escapeHtml(msg) + '</div>';
+      document.getElementById("rsvpContent").style.display = "none";
+    }
+
+    function initRsvpConfirmationView(rawConfirmToken) {
+      var confirmMeta = parseConfirmToken(rawConfirmToken);
+      if (!confirmMeta || !confirmMeta.b) {
+        document.body.classList.add("rsvp-mode");
+        showRsvpNotFound("⚠️ වලංගු නොවන RSVP ලින්ක් එකකි. කරුණාකර සභා භාරකරු අමතන්න.");
+        return;
+      }
+
+      activeRsvpConfirmMeta = confirmMeta;
+      activeRsvpBookingId = confirmMeta.b;
+      document.body.classList.add("rsvp-mode");
+      loadStoredRosterAndMembersForFallback();
+
+      if (typeof rsvpDocUnsubscribe === "function") {
+        try { rsvpDocUnsubscribe(); } catch (_) {}
+        rsvpDocUnsubscribe = null;
+      }
+
+      var fallbackData = findRosterSlotByConfirmMeta(confirmMeta);
+
+      if (!db) {
+        if (fallbackData) {
+          renderRsvpCard(fallbackData);
+        } else {
+          showRsvpNotFound("⚠️ දත්ත ගබඩාව සම්බන්ධ කළ නොහැක (Offline Mode).");
+        }
+        return;
+      }
+
+      var docRef = db.collection("bookings").doc(confirmMeta.b);
+      var handleDocSnapshot = function(doc) {
+        var data = doc && doc.exists ? doc.data() : null;
+        if (data) {
+          if (fallbackData) {
+            data = Object.assign({}, fallbackData, data);
+          }
+          renderRsvpCard(data);
+        } else if (fallbackData) {
+          renderRsvpCard(fallbackData);
+        } else {
+          showRsvpNotFound("⚠️ මෙම සේවා වාරය සොයා ගැනීමට නොහැකි විය. කරුණාකර සභා භාරකරු අමතන්න.");
+        }
+      };
+
+      if (typeof docRef.onSnapshot === "function") {
+        rsvpDocUnsubscribe = docRef.onSnapshot(handleDocSnapshot, function(err) {
+          console.warn("RSVP snapshot error:", err);
+          if (fallbackData) {
+            renderRsvpCard(fallbackData);
+          } else {
+            showRsvpNotFound("⚠️ විස්තර පූරණය කිරීමේ දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.");
+          }
+        });
+      } else {
+        docRef.get().then(handleDocSnapshot).catch(function(err) {
+          console.warn("RSVP load error:", err);
+          if (fallbackData) {
+            renderRsvpCard(fallbackData);
+          } else {
+            showRsvpNotFound("⚠️ විස්තර පූරණය කිරීමේ දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.");
+          }
+        });
+      }
+    }
+
+    function submitRsvpResponse(newStatus, openOptionalReason) {
+      if (!activeRsvpBookingId) return;
+
+      var declineReason = "";
+      var swapDetails = "";
+      if (newStatus === "Declined") {
+        declineReason = (document.getElementById("rsvpDeclineInput").value || "").trim();
+      } else if (newStatus === "Swapped") {
+        swapDetails = (document.getElementById("rsvpSwapInput").value || "").trim();
+        if (!swapDetails) {
+          showToast("කරුණාකර මාරු වූ සාමාජිකයාගේ නම හෝ විස්තර ඇතුළත් කරන්න!");
+          document.getElementById("rsvpSwapInput").focus();
+          return;
+        }
+      }
+
+      var base = activeRsvpBookingData || findRosterSlotByConfirmMeta(activeRsvpConfirmMeta) || {};
+      var slotMetaFields = {};
+      if (activeRsvpConfirmMeta) {
+        if (activeRsvpConfirmMeta.m && !base.slotMonth) slotMetaFields.slotMonth = activeRsvpConfirmMeta.m;
+        if (typeof activeRsvpConfirmMeta.d === "number" && typeof base.slotDayIndex !== "number") slotMetaFields.slotDayIndex = activeRsvpConfirmMeta.d;
+        if (typeof activeRsvpConfirmMeta.s === "number" && typeof base.slotIndex !== "number") slotMetaFields.slotIndex = activeRsvpConfirmMeta.s;
+        if (typeof activeRsvpConfirmMeta.p === "number" && typeof base.participantIndex !== "number") slotMetaFields.participantIndex = activeRsvpConfirmMeta.p;
+      }
+
+      var updatedLocal = Object.assign({}, base, slotMetaFields, {
+        status: newStatus,
+        declineReason: (newStatus === "Declined") ? declineReason : "",
+        swapDetails: (newStatus === "Swapped") ? swapDetails : "",
+        confirmedVia: "rsvp_link"
+      });
+
+      setRsvpButtonsDisabled(true);
+
+      var syncExtraPanelsAfterSave = function() {
+        var declBox = document.getElementById("rsvpDeclineBox");
+        var swapBox = document.getElementById("rsvpSwapBox");
+        if (newStatus === "Declined" && openOptionalReason) {
+          if (declBox) declBox.classList.add("active");
+          if (swapBox) swapBox.classList.remove("active");
+        } else {
+          if (declBox) declBox.classList.remove("active");
+          if (swapBox) swapBox.classList.remove("active");
+        }
+      };
+
+      if (!db) {
+        syncExtraPanelsAfterSave();
+        renderRsvpCard(updatedLocal);
+        setRsvpButtonsDisabled(false);
+        showToast("Offline Mode — ප්‍රතිචාරය දේශීයව පෙන්වන ලදී.");
+        return;
+      }
+
+      var firestorePayload = Object.assign({}, updatedLocal, {
+        rsvpRespondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      return db.collection("bookings").doc(activeRsvpBookingId).set(firestorePayload, { merge: true }).then(function() {
+        syncExtraPanelsAfterSave();
+        renderRsvpCard(updatedLocal);
+        setRsvpButtonsDisabled(false);
+        showToast("ඔබගේ ප්‍රතිචාරය (" + newStatus + ") සාර්ථකව සුරැකිණි!");
+      }).catch(function(err) {
+        console.warn("RSVP save error:", err);
+        setRsvpButtonsDisabled(false);
+        showToast("⚠️ සුරැකීමේදී දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.");
+      });
+    }
+
+    function exitRsvpToFullRoster(evt) {
+      if (evt && evt.preventDefault) evt.preventDefault();
+      if (typeof rsvpDocUnsubscribe === "function") {
+        try { rsvpDocUnsubscribe(); } catch (_) {}
+        rsvpDocUnsubscribe = null;
+      }
+      try {
+        if (window.history && typeof window.history.replaceState === "function") {
+          window.history.replaceState({}, document.title, window.location.pathname || "/");
+          document.body.classList.remove("rsvp-mode");
+          setupFirestoreListeners();
+          initData();
+          return false;
+        }
+      } catch (e) {}
+      if (window.location) {
+        window.location.href = window.location.pathname || "/";
+      }
+      return false;
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
-      initData();
+      var confirmId = getConfirmParamFromLocation();
+      if (confirmId) {
+        initRsvpConfirmationView(confirmId);
+      } else {
+        initData();
+      }
     });
   </script>
 </body>
