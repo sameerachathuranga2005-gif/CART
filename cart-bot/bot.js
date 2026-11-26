@@ -9,6 +9,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
   delay,
   Browsers
 } = require('@whiskeysockets/baileys');
@@ -48,7 +49,31 @@ let contactsCache = {};
 let latestQr = null;
 let latestQrDataUrl = null;
 const sendingDocIds = new Set();
-const sentMessagesStore = new Map();
+const sentMessagesCache = new Map();
+const MAX_SENT_CACHE_SIZE = 500;
+
+const msgRetryCounterMap = new Map();
+const msgRetryCounterCache = {
+  get: (key) => msgRetryCounterMap.get(key),
+  set: (key, val) => {
+    msgRetryCounterMap.set(key, val);
+    if (msgRetryCounterMap.size > 1000) {
+      const oldestKey = msgRetryCounterMap.keys().next().value;
+      msgRetryCounterMap.delete(oldestKey);
+    }
+  },
+  del: (key) => msgRetryCounterMap.delete(key),
+  flushAll: () => msgRetryCounterMap.clear()
+};
+
+function cacheSentMessage(messageId, messagePayload) {
+  if (!messageId || !messagePayload) return;
+  sentMessagesCache.set(messageId, messagePayload);
+  if (sentMessagesCache.size > MAX_SENT_CACHE_SIZE) {
+    const oldestKey = sentMessagesCache.keys().next().value;
+    sentMessagesCache.delete(oldestKey);
+  }
+}
 
 const botState = {
   pid: process.pid,
@@ -139,15 +164,56 @@ function formatDateToISO(dateObj) {
 
 async function sendWhatsAppMessage(jid, content) {
   if (!sock) throw new Error('WhatsApp socket not initialized');
-  const sent = await sock.sendMessage(jid, content);
-  if (sent && sent.key && sent.key.id && sent.message) {
-    sentMessagesStore.set(sent.key.id, sent.message);
-    if (sentMessagesStore.size > 500) {
-      const oldestKey = sentMessagesStore.keys().next().value;
-      sentMessagesStore.delete(oldestKey);
-    }
+  // Force Baileys to sync the recipient's Signal pre-keys and device list before encrypting
+  await sock.presenceSubscribe(jid).catch(() => {});
+  await sock.sendPresenceUpdate('composing', jid).catch(() => {});
+  if (typeof sock.assertSessions === 'function' && typeof jid === 'string' && !jid.endsWith('@g.us')) {
+    await sock.assertSessions([jid], false).catch(() => {});
   }
-  return sent;
+  await new Promise((r) => setTimeout(r, 700));
+
+  const sentMsg = await sock.sendMessage(jid, content, { useUserDevicesCache: false });
+  await sock.sendPresenceUpdate('paused', jid).catch(() => {});
+  if (sentMsg && sentMsg.key && sentMsg.key.id && sentMsg.message) {
+    cacheSentMessage(sentMsg.key.id, sentMsg.message);
+  }
+  return sentMsg;
+}
+
+/**
+ * Verifies a clean phone digits string with sock.onWhatsApp(cleanDigits) and
+ * returns the canonical WhatsApp JID (waInfo.jid), falling back on transient errors.
+ */
+async function resolveVerifiedTargetJid(cleanDigits, { docId = null, personName = '', markInvalidOnMissing = false } = {}) {
+  const fallbackJid = getRecipientJid(cleanDigits);
+  if (!fallbackJid || !sock) return null;
+
+  try {
+    const waResult = await sock.onWhatsApp(cleanDigits);
+    if (Array.isArray(waResult)) {
+      const [waInfo] = waResult;
+      if (!waInfo || waInfo.exists === false) {
+        if (markInvalidOnMissing && docId && db) {
+          pushLog(`❌ [Invalid_Number] ${personName} (+${cleanDigits}) is NOT registered on WhatsApp.`);
+          await db.collection('bookings').doc(docId).update({
+            phone: cleanDigits,
+            status: 'Invalid_Number',
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        } else {
+          pushLog(`⚠️ [Skip Unregistered] ${personName || cleanDigits} (+${cleanDigits}) is NOT registered on WhatsApp.`);
+        }
+        return null;
+      }
+      if (waInfo.jid) {
+        return waInfo.jid;
+      }
+    }
+  } catch (waCheckErr) {
+    pushLog(`⚠️ [onWhatsApp Check] Could not verify +${cleanDigits} (${waCheckErr.message}), attempting send anyway...`);
+  }
+
+  return fallbackJid;
 }
 
 function pushLog(msg) {
@@ -280,7 +346,7 @@ function startHttpKeepAliveServer() {
         bookingsMonitored: botState.bookingsMonitored,
         membersCached: botState.membersCached,
         contactsCached: botState.contactsCached,
-        sentMessagesStoreSize: sentMessagesStore.size,
+        sentMessagesCacheSize: sentMessagesCache.size,
         sriLankaTime: `${slNow.dateStr} ${slNow.timeStr} (Asia/Colombo)`,
         tomorrowDate: botState.tomorrowDateStr || slTomorrow.dateStr,
         tomorrowBookingsCount: botState.tomorrowBookingsCount,
@@ -350,7 +416,7 @@ function startHttpKeepAliveServer() {
       <div class="stat"><b>Sri Lanka Time</b>${escapeHtml(slNow.dateStr + ' ' + slNow.timeStr)}</div>
       <div class="stat"><b>Tomorrow (${escapeHtml(botState.tomorrowDateStr || slTomorrow.dateStr)})</b>${botState.tomorrowBookingsCount} scheduled</div>
       <div class="stat"><b>8:00 AM Batch Status</b>${escapeHtml(dayBeforeStatusText)}</div>
-      <div class="stat"><b>Bookings / Members</b>${botState.bookingsMonitored} / ${botState.membersCached} (Store: ${sentMessagesStore.size})</div>
+      <div class="stat"><b>Bookings / Members</b>${botState.bookingsMonitored} / ${botState.membersCached} (Cache: ${sentMessagesCache.size})</div>
       <div class="stat"><b>45s Sweeper</b>${escapeHtml(botState.lastSweeperAt || 'Initializing...')}</div>
       <div class="stat"><b>Last Reminder Sent</b>${escapeHtml(botState.lastSentTo ? `${botState.lastSentTo} (${botState.lastSentAt})` : 'None yet')}</div>
     </div>
@@ -695,18 +761,32 @@ async function startBot() {
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
+  const baileysLogger = pino({ level: 'silent' });
   console.log(`Using Baileys v${version.join('.')}, isLatest: ${isLatest}`);
 
   sock = makeWASocket({
     version,
-    logger: pino({ level: 'silent' }),
-    auth: state,
+    logger: baileysLogger,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, baileysLogger)
+    },
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
     syncFullHistory: false,
-    getMessage: async (key) => (key && key.id ? sentMessagesStore.get(key.id) : undefined)
+    msgRetryCounterCache,
+    getMessage: async (key) => {
+      const id = key && key.id;
+      if (!id) return undefined;
+      const cached = sentMessagesCache.get(id);
+      if (cached) {
+        pushLog(`🔁 [Retry Cache Hit] Served message ${id} for ${key.remoteJid || 'recipient'}`);
+        return cached;
+      }
+      return undefined;
+    }
   });
 
   // Save auth credentials whenever updated
@@ -808,6 +888,11 @@ async function startBot() {
   // Incoming messages handler (messages.upsert)
   sock.ev.on('messages.upsert', async (chatUpdate) => {
     try {
+      for (const msg of chatUpdate.messages) {
+        if (msg.key && msg.key.fromMe && msg.key.id && msg.message) {
+          cacheSentMessage(msg.key.id, msg.message);
+        }
+      }
       if (chatUpdate.type !== 'notify') return;
 
       for (const msg of chatUpdate.messages) {
@@ -1106,28 +1191,13 @@ async function trySendBookingReminder(docId, booking, isInitialCheck = false) {
 
   sendingDocIds.add(docId);
   try {
-    // Verify phone number exists on WhatsApp before sending
-    let targetJid = recipientJid;
-    try {
-      const waCheck = await sock.onWhatsApp(recipientJid);
-      if (Array.isArray(waCheck)) {
-        const entry = waCheck[0];
-        if (waCheck.length === 0 || (entry && entry.exists === false)) {
-          pushLog(`❌ [Invalid_Number] ${personName} (+${resolvedPhone}) is NOT registered on WhatsApp.`);
-          await db.collection('bookings').doc(docId).update({
-            phone: resolvedPhone,
-            status: 'Invalid_Number',
-            updatedAt: FieldValue.serverTimestamp()
-          });
-          return false;
-        }
-        if (entry && entry.jid) {
-          targetJid = entry.jid;
-        }
-      }
-    } catch (waCheckErr) {
-      pushLog(`⚠️ [onWhatsApp Check] Could not verify ${recipientJid} (${waCheckErr.message}), attempting send anyway...`);
-    }
+    // Verify cleanDigits via sock.onWhatsApp and use WhatsApp's canonical targetJid
+    const targetJid = await resolveVerifiedTargetJid(resolvedPhone, {
+      docId,
+      personName,
+      markInvalidOnMissing: true
+    });
+    if (!targetJid) return false;
 
     pushLog(`⚡ [Live Roster Trigger] Sending reminder to ${personName} (+${resolvedPhone})`);
 
@@ -1296,8 +1366,8 @@ async function runDayBefore8AmReminders(forceRun = false) {
 
       const personName = b.name || b.memberName || '';
       const resolvedPhone = resolvePhoneForBooking(personName, b.phone);
-      const recipientJid = getRecipientJid(resolvedPhone);
-      if (!recipientJid) {
+      const targetJid = await resolveVerifiedTargetJid(resolvedPhone, { personName });
+      if (!targetJid) {
         pushLog(`⚠️ [8AM Day-Before Skip] Missing/invalid phone for ${personName} (${docId})`);
         continue;
       }
@@ -1317,7 +1387,7 @@ async function runDayBefore8AmReminders(forceRun = false) {
         `📍 ස්ථානය: *${displayLoc}*\n\n` +
         `${confirmLine}`;
 
-      await sendWhatsAppMessage(recipientJid, { text: msg });
+      await sendWhatsAppMessage(targetJid, { text: msg });
       await db.collection('bookings').doc(docId).update({
         phone: resolvedPhone,
         dayBeforeReminderSent: true,
@@ -1402,11 +1472,13 @@ function setupCronJobs() {
         }
         // B. Retry 1 Reminder (Sent_1 -> Retry_1 after 6 hours)
         else if (b.status === 'Sent_1' && (nowMs - lastSentMs) >= SIX_HOURS_MS) {
+          const targetJid = await resolveVerifiedTargetJid(resolvedPhone, { docId, personName });
+          if (!targetJid) continue;
           const msg = `මතක් කිරීමයි (1): ${personName},\n` +
                       `*${displayDate}* (${displayTime}) දින සේවා වාරය තහවුරු කර නොමැත.\n\n` +
                       `කරුණාකර ඔබ සහභාගි වන්නේද යන්න *හරි* හෝ *බෑ* ලෙස පිළිතුරක් එවන්න.`;
 
-          await sendWhatsAppMessage(recipientJid, { text: msg });
+          await sendWhatsAppMessage(targetJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
             phone: resolvedPhone,
             status: 'Retry_1',
@@ -1419,12 +1491,14 @@ function setupCronJobs() {
         }
         // C. Retry 2 Reminder (Retry_1 -> Retry_2 after 6 hours)
         else if (b.status === 'Retry_1' && (nowMs - lastSentMs) >= SIX_HOURS_MS) {
+          const targetJid = await resolveVerifiedTargetJid(resolvedPhone, { docId, personName });
+          if (!targetJid) continue;
           const msg = `අවසාන මතක් කිරීමයි: ${personName},\n` +
                       `*${displayDate}* දින සේවා වාරය තහවුරු කිරීම සඳහා කරුණාකර අද දින තුළ පිළිතුරක් එවන්න.\n\n` +
                       `• සහභාගි වන්නේ නම්: *හරි*\n` +
                       `• නොහැකි නම්: *බෑ*`;
 
-          await sendWhatsAppMessage(recipientJid, { text: msg });
+          await sendWhatsAppMessage(targetJid, { text: msg });
           await db.collection('bookings').doc(docId).update({
             phone: resolvedPhone,
             status: 'Retry_2',
