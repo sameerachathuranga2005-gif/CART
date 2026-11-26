@@ -2072,6 +2072,604 @@
       background: transparent;
       cursor: default;
     }
+
+    /* ========================================================
+       RESPONSIVE DESIGN FOR PHONES & TABLETS (Screen Only)
+       ======================================================== */
+    @media screen and (max-width: 900px) {
+      .app-topbar {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px 14px;
+      }
+      .brand-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .topbar-btns {
+        order: 2;
+        justify-content: flex-end;
+      }
+      .topbar-view-switcher {
+        order: 3;
+        width: 100%;
+        justify-content: stretch;
+      }
+      .view-nav-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+      .main-wrap {
+        margin: 12px auto;
+        padding: 0 12px;
+      }
+      .report-grid-2col {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+
+    @media screen and (max-width: 720px) {
+      html, body {
+        overflow-x: hidden;
+      }
+
+      /* Prevent iOS Safari zoom when focusing inputs */
+      .auth-input,
+      .field-input,
+      .mp-search-input,
+      .search-box-charm input,
+      select.field-input {
+        font-size: 16px !important;
+      }
+
+      /* Mobile Topbar: full scroll height + thumb-friendly nav */
+      .app-topbar {
+        position: static;
+        padding: 10px 12px;
+        gap: 8px;
+      }
+      .brand-wrap {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .brand-title {
+        font-size: 1.15rem;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .brand-badge {
+        font-size: 0.68rem;
+      }
+      .fb-pill {
+        font-size: 0.68rem;
+        padding: 3px 8px;
+      }
+
+      .topbar-view-switcher {
+        order: 2;
+        width: 100%;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 4px;
+        padding: 4px;
+      }
+      .topbar-view-switcher::-webkit-scrollbar {
+        display: none;
+      }
+      .view-nav-btn {
+        flex: 1 0 auto;
+        font-size: 0.78rem;
+        padding: 8px 10px;
+        min-height: 36px;
+        white-space: nowrap;
+      }
+
+      .topbar-btns {
+        order: 3;
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .topbar-btns .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 8px 8px;
+        font-size: 0.76rem;
+        min-height: 38px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Main Wrap & Hero Banners */
+      .main-wrap {
+        margin: 10px auto;
+        padding: 0 10px;
+      }
+      .title-banner-charm {
+        padding: 12px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+      }
+      .main-heading-charm {
+        font-size: 1.28rem;
+        line-height: 1.25;
+      }
+      .meta-charm {
+        font-size: 0.78rem;
+        gap: 6px;
+      }
+      .pill-charm-gold,
+      .pill-charm-slate {
+        max-width: 100%;
+        word-break: break-word;
+      }
+
+      #membersViewWrap .title-banner-charm > div,
+      #reportViewWrap .title-banner-charm > div {
+        flex-direction: column;
+        align-items: stretch !important;
+        text-align: center;
+      }
+      #membersViewWrap .title-banner-charm .no-print,
+      #reportViewWrap .title-banner-charm .no-print {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        width: 100%;
+      }
+      #membersViewWrap .title-banner-charm .no-print .btn,
+      #reportViewWrap .title-banner-charm .no-print .btn,
+      #repDayPdfSelect {
+        width: 100%;
+        max-width: 100% !important;
+        justify-content: center;
+        min-height: 40px;
+      }
+
+      /* Controls Row, Month Tabs & Search */
+      .controls-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .month-segmented {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2px;
+      }
+      .segment-btn {
+        padding: 8px 4px;
+        font-size: 0.78rem;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .controls-row > div:not(.month-segmented) {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+      }
+      .btn-wa-batch {
+        width: 100%;
+        justify-content: center;
+        min-height: 40px;
+      }
+      .search-box-charm {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 40px;
+      }
+      .batch-send-bar {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .batch-send-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .batch-send-actions .btn-wa-batch {
+        grid-column: 1 / -1;
+      }
+
+      /* Day Cards -> Crisp Mobile Slot Stack */
+      .day-card:hover {
+        transform: none;
+      }
+      .card-header-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 12px;
+      }
+      .date-heading-text {
+        font-size: 1.08rem;
+        width: 100%;
+        justify-content: flex-start;
+        padding: 4px 6px;
+      }
+      .header-right {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .loc-text {
+        flex: 1 1 100%;
+        font-size: 0.82rem;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+      }
+      .btn-send-day {
+        flex: 1 1 auto;
+        justify-content: center;
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        min-height: 36px;
+      }
+      .theme-select-quick {
+        min-height: 36px;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+      }
+      .btn-card-del {
+        min-width: 36px;
+        min-height: 36px;
+        background: rgba(255, 255, 255, 0.65);
+        border-radius: 6px;
+      }
+
+      .roster-table,
+      .roster-table tbody {
+        display: block;
+        width: 100%;
+      }
+      .roster-table thead {
+        display: none;
+      }
+      .roster-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        border-bottom: 1.5px solid #0f172a;
+        background: #ffffff;
+      }
+      .roster-table tbody tr:last-child {
+        border-bottom: none;
+      }
+      .roster-table td:first-child {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #cbd5e1;
+        padding: 9px 44px 9px 12px;
+        text-align: left;
+      }
+      .time-text {
+        font-size: 0.94rem;
+        display: inline-block;
+      }
+      .roster-table td:not(:first-child):not(.td-action) {
+        display: block;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px dashed #e2e8f0;
+        padding: 9px 12px;
+        text-align: left;
+      }
+      .roster-table td[colspan="3"] {
+        text-align: center !important;
+        padding: 14px 12px !important;
+        border-bottom: 1px dashed #e2e8f0;
+      }
+      .whq-pill-badge {
+        max-width: 100%;
+        font-size: 1rem;
+        padding: 6px 14px;
+      }
+      .participant-cell-wrap {
+        align-items: flex-start;
+        min-height: 0;
+        gap: 6px;
+      }
+      .name-editable {
+        width: auto;
+        max-width: 100%;
+        padding: 5px 10px;
+        font-size: 0.95rem;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        text-align: left;
+      }
+      .live-meta-row {
+        justify-content: flex-start;
+        gap: 6px;
+        width: 100%;
+        margin-top: 2px;
+      }
+      .status-badge,
+      .phone-badge,
+      .btn-send-bot-mini {
+        padding: 4px 9px;
+        font-size: 0.74rem;
+        border-radius: 6px;
+        min-height: 28px;
+      }
+      .roster-table td.td-action {
+        position: absolute;
+        top: 5px;
+        right: 6px;
+        border: none;
+        padding: 0;
+        background: transparent !important;
+      }
+      .btn-row-del {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        color: #64748b;
+        background: rgba(255, 255, 255, 0.75);
+      }
+      .card-footer-quickbar {
+        justify-content: stretch;
+        padding: 6px 10px;
+      }
+      .btn-quick-add {
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 0.82rem;
+      }
+
+      /* Members Directory -> Mobile Cards */
+      .members-stats-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .member-stat-box {
+        padding: 10px 12px;
+      }
+      .member-stat-val {
+        font-size: 1.35rem;
+      }
+      .members-controls-card {
+        padding: 10px 12px;
+        margin-bottom: 12px;
+      }
+      .members-controls-card > div {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+      }
+      .members-filter-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+      }
+      .members-filter-bar::-webkit-scrollbar {
+        display: none;
+      }
+      .filter-chip-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: 6px 12px;
+      }
+      .members-dir-table thead {
+        display: none;
+      }
+      .members-dir-table,
+      .members-dir-table tbody {
+        display: block;
+        width: 100%;
+      }
+      .members-dir-table tbody tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 12px;
+        border-bottom: 1.5px solid #e2e8f0;
+        background: #ffffff;
+      }
+      .members-dir-table tbody tr:last-child {
+        border-bottom: none;
+      }
+      .members-dir-table td {
+        border: none;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+      }
+      .members-dir-table td[colspan] {
+        display: block;
+        width: 100%;
+      }
+      .td-member-id {
+        font-weight: 800;
+        font-size: 0.75rem;
+        color: #64748b;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 2px 7px !important;
+      }
+      .td-member-id::before {
+        content: "#";
+      }
+      .td-member-name {
+        font-weight: 800;
+        font-size: 0.98rem;
+        color: #0f172a;
+        flex: 1 1 auto;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .td-member-age {
+        flex-shrink: 0;
+      }
+      .td-member-phone {
+        flex: 1 1 100%;
+        margin-top: 2px;
+        gap: 6px;
+      }
+      .td-member-actions {
+        flex: 1 1 100%;
+        justify-content: flex-end !important;
+        border-top: 1px dashed #e2e8f0 !important;
+        padding-top: 8px !important;
+        margin-top: 4px;
+        gap: 8px;
+      }
+
+      /* Summary & Report Responsive Stats */
+      .summary-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .summary-stats-grid .stat-total {
+        grid-column: 1 / -1;
+      }
+      .stat-box .count {
+        font-size: 1.35rem;
+      }
+      .report-card-list li,
+      .summary-group-list li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+
+      /* Modals -> Bottom Sheet Drawer on Mobile */
+      .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+      .modal-card,
+      .modal-card-wide {
+        max-width: 100%;
+        max-height: 92vh;
+        max-height: 92dvh;
+        border-radius: 16px 16px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-top {
+        padding: 14px 16px;
+      }
+      .modal-body {
+        padding: 14px;
+        overflow-y: auto;
+        flex: 1 1 auto;
+      }
+      .modal-body-scroll {
+        padding: 12px;
+        flex: 1 1 auto;
+      }
+      .modal-actions {
+        padding: 10px 14px;
+        flex-wrap: wrap;
+      }
+      #summaryModal > .modal-card-wide > div:nth-child(2) {
+        flex-direction: column;
+        align-items: stretch !important;
+        padding: 10px 12px !important;
+      }
+      #summaryModal > .modal-card-wide > div:nth-child(2) > div {
+        width: 100%;
+      }
+      #sumDayPdfSelect {
+        width: 100%;
+        max-width: 100% !important;
+      }
+      .mp-list {
+        max-height: 44dvh;
+      }
+      .mp-item {
+        padding: 11px 12px;
+        min-height: 44px;
+      }
+      .dp-cal-day {
+        padding: 9px 2px;
+        min-height: 36px;
+        font-size: 0.86rem;
+      }
+
+      /* Auth & RSVP Mobile Ergonomics */
+      .auth-lock-overlay {
+        padding: 14px;
+      }
+      .auth-lock-card {
+        padding: 22px 18px 20px;
+      }
+      .auth-title {
+        font-size: 1.32rem;
+      }
+      .auth-unlock-btn {
+        min-height: 46px;
+      }
+
+      .rsvp-wrap {
+        margin: 8px auto;
+        padding: 0 2px;
+      }
+      .rsvp-header {
+        padding: 14px;
+      }
+      .rsvp-header h1 {
+        font-size: 1.3rem;
+      }
+      .rsvp-body {
+        padding: 14px;
+        gap: 12px;
+      }
+      .rsvp-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+      }
+      .rsvp-detail-val {
+        text-align: left;
+      }
+      .rsvp-btn {
+        min-height: 48px;
+        font-size: 0.96rem;
+      }
+
+      /* Mobile Snackbar Toast */
+      .toast-box {
+        left: 12px;
+        right: 12px;
+        bottom: 14px;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body class="auth-locked">
