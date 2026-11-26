@@ -62,16 +62,207 @@
 
     body {
       font-family: 'Noto Sans Sinhala', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      background-color: var(--bg-page);
+      background: radial-gradient(circle at top left, #eff6ff 0%, #f8fafc 42%, #f1f5f9 100%);
+      background-attachment: fixed;
       color: var(--text-main);
       line-height: 1.45;
       padding-bottom: 70px;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Elegant Minimalist Top Navigation */
-    .app-topbar {
+    /* Smooth Pro Keyframes */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes modalPopIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes livePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+      50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
+    }
+    @keyframes authShake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    @keyframes ambientFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(16px, -18px) scale(1.06); }
+    }
+
+    /* Admin Password Lock Overlay */
+    body.auth-locked .app-topbar,
+    body.auth-locked .main-wrap {
+      filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      user-select: none;
+    }
+    .auth-lock-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      overflow: hidden;
+    }
+    body.auth-locked:not(.rsvp-mode) .auth-lock-overlay {
+      display: flex;
+    }
+    body.rsvp-mode .auth-lock-overlay {
+      display: none !important;
+    }
+    .auth-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(55px);
+      opacity: 0.35;
+      pointer-events: none;
+      animation: ambientFloat 7s ease-in-out infinite;
+    }
+    .auth-orb.orb-1 {
+      width: 280px;
+      height: 280px;
+      background: #16a34a;
+      top: -60px;
+      left: -60px;
+    }
+    .auth-orb.orb-2 {
+      width: 320px;
+      height: 320px;
+      background: #eab308;
+      bottom: -80px;
+      right: -70px;
+      animation-delay: -3.5s;
+    }
+    .auth-lock-card {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.97);
+      border: 1.5px solid rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      padding: 28px 24px 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+      text-align: center;
+      animation: modalPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .auth-lock-card.shake {
+      animation: authShake 0.38s ease;
+    }
+    .auth-shield-badge {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 12px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #fde047;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+    }
+    .auth-title {
+      font-family: 'Gemunu Libre', 'Noto Sans Sinhala', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+    .auth-subtitle {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+    .auth-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .auth-input {
+      width: 100%;
+      padding: 11px 42px 11px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 0.96rem;
+      font-family: inherit;
+      outline: none;
+      background: #f8fafc;
+      color: #0f172a;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .auth-input:focus {
+      border-color: #0f172a;
       background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.1);
+    }
+    .auth-eye-btn {
+      position: absolute;
+      right: 10px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 4px;
+      color: #64748b;
+    }
+    .auth-error {
+      min-height: 18px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #dc2626;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .auth-remember-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .auth-unlock-btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      color: #ffffff;
+      font-size: 0.96rem;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+      transition: transform 0.14s ease, box-shadow 0.18s ease, filter 0.15s ease;
+    }
+    .auth-unlock-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(22, 163, 74, 0.36);
+      filter: brightness(1.04);
+    }
+    .auth-unlock-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Elegant Glassmorphic Top Navigation */
+    .app-topbar {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       color: #0f172a;
       padding: 10px 24px;
       display: flex;
@@ -80,8 +271,9 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      border-bottom: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      border-bottom: 1px solid rgba(203, 213, 225, 0.8);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      transition: opacity 0.25s ease, filter 0.25s ease;
     }
 
     .brand-wrap {
@@ -91,14 +283,15 @@
     }
 
     .brand-icon {
-      background: #0f172a;
-      color: #ffffff;
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
+      background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+      color: #fde047;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
     }
 
     .brand-title {
@@ -129,17 +322,22 @@
       gap: 5px;
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 12px;
       border: 1px solid #cbd5e1;
       background: #ffffff;
       cursor: pointer;
       user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .fb-pill:hover {
+      transform: translateY(-1px);
     }
     .fb-pill.live {
       color: #166534;
       background: #f0fdf4;
       border-color: #86efac;
+      animation: livePulse 2.4s infinite;
     }
     .fb-pill.connecting {
       color: #854d0e;
@@ -156,9 +354,10 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
-    /* Clean Buttons */
+    /* Pro Tactile Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -166,40 +365,50 @@
       padding: 6px 14px;
       font-size: 0.82rem;
       font-weight: 600;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: transform 0.14s ease, box-shadow 0.16s ease, background 0.15s ease, border-color 0.15s ease;
       font-family: inherit;
       user-select: none;
       text-decoration: none;
     }
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
 
     .btn-primary {
-      background: #0f172a;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #ffffff;
       border: 1px solid #0f172a;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
     }
     .btn-primary:hover {
-      background: #1e293b;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.26);
     }
 
     .btn-secondary {
       background: #ffffff;
       color: #334155;
       border: 1px solid #cbd5e1;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
     .btn-secondary:hover {
       background: #f8fafc;
       border-color: #94a3b8;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07);
     }
 
     .btn-summary {
-      background: #0284c7;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       color: #ffffff;
       border: 1px solid #0284c7;
+      box-shadow: 0 2px 6px rgba(2, 132, 199, 0.24);
     }
     .btn-summary:hover {
-      background: #0369a1;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.34);
     }
 
     /* Main Container */
@@ -207,17 +416,19 @@
       max-width: 980px;
       margin: 16px auto;
       padding: 0 16px;
+      transition: opacity 0.25s ease, filter 0.25s ease;
     }
 
     /* Charm Title Section */
     .title-banner-charm {
-      background: #ffffff;
-      border: 1.5px solid #000000;
-      border-radius: var(--radius);
-      padding: 14px 20px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1.5px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px 20px;
       text-align: center;
       margin-bottom: 14px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      animation: fadeSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     .main-heading-charm {
@@ -326,17 +537,24 @@
     /* Day Card */
     .day-card {
       background: #ffffff;
-      border-radius: var(--radius);
-      border: 1.5px solid #000000;
+      border-radius: 12px;
+      border: 1.5px solid #1e293b;
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-      transition: box-shadow 0.15s ease;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+      animation: fadeSlideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
+    .day-card:nth-child(2) { animation-delay: 0.04s; }
+    .day-card:nth-child(3) { animation-delay: 0.08s; }
+    .day-card:nth-child(4) { animation-delay: 0.12s; }
+    .day-card:nth-child(5) { animation-delay: 0.16s; }
+    .day-card:nth-child(n+6) { animation-delay: 0.2s; }
 
     .day-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
     }
 
     /* THEME 1: GOLD AMBER */
@@ -833,7 +1051,9 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(15, 23, 42, 0.56);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -844,12 +1064,13 @@
 
     .modal-card {
       background: #ffffff;
-      border-radius: 8px;
+      border-radius: 12px;
       width: 100%;
       max-width: 460px;
-      border: 1.5px solid #000000;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      border: 1.5px solid #1e293b;
+      box-shadow: 0 22px 50px rgba(15, 23, 42, 0.25);
       overflow: hidden;
+      animation: modalPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     .modal-top {
       background: #0f172a;
@@ -962,18 +1183,28 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: #0f172a;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
+      padding: 10px 18px;
+      border-radius: 10px;
       font-size: 0.84rem;
       font-weight: 600;
-      transform: translateY(100px);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      transform: translateY(100px) scale(0.96);
       opacity: 0;
-      transition: all 0.2s ease;
-      z-index: 2000;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+      z-index: 6000;
     }
-    .toast-box.show { transform: translateY(0); opacity: 1; }
+    .toast-box.show { transform: translateY(0) scale(1); opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
     /* PRINT STYLES */
     @media print {
@@ -986,6 +1217,10 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+        backdrop-filter: none !important;
       }
 
       body {
@@ -996,6 +1231,7 @@
       }
 
       .app-topbar,
+      .auth-lock-overlay,
       .controls-row,
       .card-footer-quickbar,
       .col-act,
@@ -1838,7 +2074,33 @@
     }
   </style>
 </head>
-<body>
+<body class="auth-locked">
+
+  <!-- Admin Password Gate (Password: sudara) -->
+  <div class="auth-lock-overlay no-print" id="authLockOverlay">
+    <div class="auth-orb orb-1"></div>
+    <div class="auth-orb orb-2"></div>
+    <div class="auth-lock-card" id="authLockCard">
+      <div class="auth-shield-badge">🔐</div>
+      <h2 class="auth-title">පොදු සේවය - බටගම සභාව</h2>
+      <p class="auth-subtitle">Roster Pro Admin Access | මුරපදය ඇතුළත් කරන්න</p>
+
+      <div class="auth-input-wrap">
+        <input type="password" id="authPassInput" class="auth-input" placeholder="Password (මුරපදය)..." autocomplete="current-password" onkeydown="handleAuthPassKeydown(event)">
+        <button type="button" class="auth-eye-btn" id="authEyeBtn" onclick="toggleAuthPasswordVisibility()" title="Show / Hide Password">👁️</button>
+      </div>
+      <div class="auth-error" id="authErrorMsg"></div>
+
+      <label class="auth-remember-row">
+        <input type="checkbox" id="authRememberMe" checked style="width:15px; height:15px; accent-color:#16a34a;">
+        <span>මෙම උපාංගයේ මතක තබා ගන්න (Remember on this device)</span>
+      </label>
+
+      <button type="button" class="auth-unlock-btn" id="btnAuthUnlock" onclick="submitAdminPassword()">
+        🔓 ඇතුළු වන්න (Unlock Dashboard)
+      </button>
+    </div>
+  </div>
 
   <!-- Top Navigation -->
   <header class="app-topbar">
@@ -1905,6 +2167,10 @@
       <button class="btn btn-secondary" onclick="resetActiveMonthData()" title="නැවත මුල් දත්ත වලට හරවන්න">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
         මුල් තත්වයට
+      </button>
+
+      <button type="button" class="btn btn-secondary" onclick="lockAdminSession()" title="Lock Screen (මුරපදය දමන්න)">
+        🔒 Lock
       </button>
     </div>
   </header>
@@ -2632,6 +2898,10 @@
     var liveContacts = {};  // Map of normalized name -> phone
     var activeRsvpBookingId = "";
     var activeRsvpBookingData = null;
+    var ADMIN_PASSCODE = "sudara";
+    var AUTH_STORAGE_KEY = "batagama_roster_auth_v1";
+    var firestoreListenersStarted = false;
+    var adminDataInitialized = false;
 
     function getConfirmParamFromLocation() {
       try {
@@ -2643,8 +2913,21 @@
       }
     }
 
-    if (typeof document !== "undefined" && document.body && getConfirmParamFromLocation()) {
-      document.body.classList.add("rsvp-mode");
+    function isAdminUnlocked() {
+      try {
+        if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(AUTH_STORAGE_KEY) === "1") return true;
+        if (typeof localStorage !== "undefined" && localStorage.getItem(AUTH_STORAGE_KEY) === "1") return true;
+      } catch (e) {}
+      return false;
+    }
+
+    if (typeof document !== "undefined" && document.body) {
+      if (getConfirmParamFromLocation()) {
+        document.body.classList.add("rsvp-mode");
+        document.body.classList.remove("auth-locked");
+      } else if (isAdminUnlocked()) {
+        document.body.classList.remove("auth-locked");
+      }
     }
 
     try {
@@ -2659,8 +2942,9 @@
           console.log("Analytics note:", aErr.message);
         }
         updateFirebaseStatus("live", "Firestore Live");
-        if (!getConfirmParamFromLocation()) {
+        if (!getConfirmParamFromLocation() && isAdminUnlocked()) {
           setupFirestoreListeners();
+          firestoreListenersStarted = true;
         }
       } else {
         updateFirebaseStatus("offline", "Firebase Offline");
@@ -6335,6 +6619,124 @@
       });
     }
 
+    function startAdminDashboardSession() {
+      if (document.body) {
+        document.body.classList.remove("auth-locked");
+      }
+      if (!firestoreListenersStarted && typeof setupFirestoreListeners === "function") {
+        firestoreListenersStarted = true;
+        setupFirestoreListeners();
+      }
+      if (!adminDataInitialized && typeof initData === "function") {
+        adminDataInitialized = true;
+        initData();
+      }
+    }
+
+    function initAuthLockGate() {
+      if (document.body) {
+        document.body.classList.add("auth-locked");
+      }
+      var err = document.getElementById("authErrorMsg");
+      if (err) err.textContent = "";
+      var input = document.getElementById("authPassInput");
+      if (input) {
+        input.value = "";
+        input.type = "password";
+        setTimeout(function() {
+          try { input.focus(); } catch (_) {}
+        }, 60);
+      }
+      var eye = document.getElementById("authEyeBtn");
+      if (eye) eye.textContent = "👁️";
+      var card = document.getElementById("authLockCard");
+      if (card) card.classList.remove("shake");
+    }
+
+    function toggleAuthPasswordVisibility() {
+      var input = document.getElementById("authPassInput");
+      var eye = document.getElementById("authEyeBtn");
+      if (!input) return;
+      var showPlain = input.type === "password";
+      input.type = showPlain ? "text" : "password";
+      if (eye) eye.textContent = showPlain ? "🙈" : "👁️";
+      try { input.focus(); } catch (_) {}
+    }
+
+    function handleAuthPassKeydown(evt) {
+      if (evt && (evt.key === "Enter" || evt.keyCode === 13)) {
+        if (evt.preventDefault) evt.preventDefault();
+        submitAdminPassword();
+      }
+    }
+
+    function submitAdminPassword() {
+      var input = document.getElementById("authPassInput");
+      var err = document.getElementById("authErrorMsg");
+      var card = document.getElementById("authLockCard");
+      var remember = document.getElementById("authRememberMe");
+      var val = input && input.value ? String(input.value).trim() : "";
+
+      if (val !== ADMIN_PASSCODE) {
+        if (card) {
+          card.classList.remove("shake");
+          try { void card.offsetWidth; } catch (_) {}
+          card.classList.add("shake");
+        }
+        if (err) {
+          err.textContent = "❌ වැරදි මුරපදයකි! කරුණාකර නිවැරදි මුරපදය ඇතුළත් කරන්න.";
+        }
+        if (input) {
+          try {
+            input.focus();
+            if (typeof input.select === "function") input.select();
+          } catch (_) {}
+        }
+        return false;
+      }
+
+      try {
+        if (typeof sessionStorage !== "undefined" && sessionStorage) {
+          sessionStorage.setItem(AUTH_STORAGE_KEY, "1");
+        }
+      } catch (_) {}
+      try {
+        if (typeof localStorage !== "undefined" && localStorage) {
+          if (remember && remember.checked) {
+            localStorage.setItem(AUTH_STORAGE_KEY, "1");
+          } else {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          }
+        }
+      } catch (_) {}
+
+      if (err) err.textContent = "";
+      if (input) input.value = "";
+      if (card) card.classList.remove("shake");
+      startAdminDashboardSession();
+      if (typeof showToast === "function") {
+        showToast("🔓 සාදරයෙන් පිළිගනිමු! Dashboard සූදානම්.");
+      }
+      return true;
+    }
+
+    function lockAdminSession() {
+      try {
+        if (typeof sessionStorage !== "undefined" && sessionStorage) {
+          sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      } catch (_) {}
+      try {
+        if (typeof localStorage !== "undefined" && localStorage) {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      } catch (_) {}
+      initAuthLockGate();
+      if (typeof showToast === "function") {
+        showToast("🔒 Dashboard අගුළු දමන ලදී.");
+      }
+    }
+
     function exitRsvpToFullRoster(evt) {
       if (evt && evt.preventDefault) evt.preventDefault();
       if (typeof rsvpDocUnsubscribe === "function") {
@@ -6345,8 +6747,11 @@
         if (window.history && typeof window.history.replaceState === "function") {
           window.history.replaceState({}, document.title, window.location.pathname || "/");
           document.body.classList.remove("rsvp-mode");
-          setupFirestoreListeners();
-          initData();
+          if (isAdminUnlocked()) {
+            startAdminDashboardSession();
+          } else {
+            initAuthLockGate();
+          }
           return false;
         }
       } catch (e) {}
@@ -6359,9 +6764,12 @@
     document.addEventListener("DOMContentLoaded", function() {
       var confirmId = getConfirmParamFromLocation();
       if (confirmId) {
+        if (document.body) document.body.classList.remove("auth-locked");
         initRsvpConfirmationView(confirmId);
+      } else if (isAdminUnlocked()) {
+        startAdminDashboardSession();
       } else {
-        initData();
+        initAuthLockGate();
       }
     });
   </script>
